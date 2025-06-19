@@ -34,7 +34,7 @@ jobs:
             echo "${{ secrets.PAT_TOKEN }}" | docker login ghcr.io -u ${{ secrets.GIT_USERNAME}} --password-stdin
 
             echo "Pulling latest Docker image..."
-            docker pull ghcr.io/koushikcodeswebpages/jseaidev:latest
+            docker pull ghcr.io/koushikcodeswebpages/raas_backend:latest
 
             echo "Running new Docker container..."
             docker run -d \
