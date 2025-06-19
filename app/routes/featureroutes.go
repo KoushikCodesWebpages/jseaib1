@@ -5,7 +5,7 @@ import (
 	"RAAS/core/middlewares"
 	// "RAAS/internal/handlers/features/generation"
 	// "RAAS/internal/handlers/features/jobs"
-	// "RAAS/internal/handlers/features/appuser"
+	"RAAS/internal/handlers/features/appuser"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -16,7 +16,7 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 	r.Use(middleware.InjectDB(client))
 
 	// Auth Middleware + Pagination helpers
-	// auth := middleware.AuthMiddleware()
+	auth := middleware.AuthMiddleware()
 	// paginate := middleware.PaginationMiddleware
 
 	// === USER ===
@@ -25,9 +25,10 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 	// r.Group("/b1/seeker", auth).
 	// GET("",seekerHandler.GetSeekerProfile)
 
-	// seekerProfileHandler := appuser.NewSeekerProfileHandler()
-	// r.Group("/b1/profile", auth).
-	// 	GET("", seekerProfileHandler.GetSeekerProfile)
+	seekerProfileHandler := appuser.NewSeekerProfileHandler()
+	r.Group("/b1/profile", auth).
+		GET("", seekerProfileHandler.GetDashboard)
+
 
 	// savedJobsHandler := appuser.NewSavedJobsHandler()
 	// r.Group("/b1/saved-jobs", auth, paginate).

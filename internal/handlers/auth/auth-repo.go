@@ -118,7 +118,7 @@ func (r *UserRepo) CreateSeeker(input dto.SeekerSignUpInput, hashedPassword stri
 		PastProjects:         			[]bson.M{},
 		Certificates:               	[]bson.M{},
 		Languages:                 		[]bson.M{},
-		KeySkills: 						[]string{}  ,
+		KeySkills: 						[]string{},
 		PrimaryTitle:                	"",
 		SecondaryTitle:              	nil,
 		TertiaryTitle:               	nil,

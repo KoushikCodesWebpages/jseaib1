@@ -63,7 +63,7 @@ type Seeker struct {
 	DailyGeneratableCV          int                `json:"daily_generatable_cv" bson:"daily_generatable_cv"`
 	DailyGeneratableCoverletter int                `json:"daily_generatable_coverletter" bson:"daily_generatable_coverletter"`
 	TotalApplications           int                `json:"total_applications" bson:"total_applications"`
-
+	
 	PersonalInfo                bson.M             `json:"personal_info" bson:"personal_info"`
 	WorkExperiences             []bson.M           `json:"work_experiences" bson:"work_experiences"`
 	Academics                   []bson.M           `json:"academics" bson:"academics"`

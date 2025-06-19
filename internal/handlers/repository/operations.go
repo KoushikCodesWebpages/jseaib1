@@ -16,6 +16,18 @@ import (
 
 )
 
+func IsChecklistComplete(seeker models.Seeker) bool {
+	return len(seeker.PersonalInfo) > 0 &&
+		len(seeker.WorkExperiences) > 0 &&
+		len(seeker.Academics) > 0 &&
+		len(seeker.PastProjects) > 0 &&
+		len(seeker.Languages) > 0 &&
+		len(seeker.Certificates) > 0 &&
+		(seeker.PrimaryTitle != "" ||
+		 (seeker.SecondaryTitle != nil && *seeker.SecondaryTitle != "") ||
+		 (seeker.TertiaryTitle != nil && *seeker.TertiaryTitle != "")) &&
+		len(seeker.KeySkills) > 0
+}
 
 // FindSeekerByUserID is a global utility function to find a Seeker by userID in MongoDB
 func FindSeekerByUserID(collection *mongo.Collection, userID uuid.UUID) (*models.Seeker, error) {

@@ -1,98 +1,134 @@
 package appuser
 
 import (
-	"RAAS/internal/dto"
-	"RAAS/internal/handlers/repository"
-	"RAAS/internal/models"
-	"context"
-	"log"
-	"net/http"
-	"time"
+    "context"
+    "log"
+    "net/http"
+    "time"
 
-	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
+    "RAAS/internal/dto"
+    "RAAS/internal/handlers/repository"
+    "RAAS/internal/models"
+    "github.com/gin-gonic/gin"
+    "go.mongodb.org/mongo-driver/bson"
+    "go.mongodb.org/mongo-driver/mongo"
 )
 
 type SeekerProfileHandler struct{}
 
 func NewSeekerProfileHandler() *SeekerProfileHandler {
-	return &SeekerProfileHandler{}
+    return &SeekerProfileHandler{}
 }
 
-// GetSeekerProfile retrieves the profile for the authenticated user
-func (h *SeekerProfileHandler) GetSeekerProfile(c *gin.Context) {
-	// Get authenticated user ID and db from context
-	userID := c.MustGet("userID").(string)
-	db := c.MustGet("db").(*mongo.Database)
+// Single dashboard endpoint using all parts individually
+func (h *SeekerProfileHandler) GetDashboard(c *gin.Context) {
+    db := c.MustGet("db").(*mongo.Database)
+    userID := c.MustGet("userID").(string)
 
-	seekersCollection := db.Collection("seekers")
+    seeker := h.fetchSeeker(c, db, userID)
+    if seeker == nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "seeker not found"})
+        return
+    }
 
-	// Set a timeout for the MongoDB operation
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+resp := dto.DashboardResponse{
+        InfoBlocks:              	h.buildInfo(*seeker),
+        Profile:     				h.buildFields(*seeker),
+        Checklist:         			h.buildChecklist(*seeker),
+        MiniNewJobsResponse:     	h.buildMiniJobs(),
+        MiniTestSummaryResponse: 	h.buildMiniTestSummary(),
+    }
 
-	// Find the seeker by auth_user_id
-	var seeker models.Seeker
-	err := seekersCollection.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Seeker profile not found"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving seeker profile"})
-		}
-		log.Printf("Error retrieving seeker profile for auth_user_id: %s, Error: %v", userID, err)
-		return
-	}
+    c.JSON(http.StatusOK, gin.H{
+        "info_block": resp.InfoBlocks,
+        "profile":    resp.Profile,
+        "checklist":  resp.Checklist,
+        "new_jobs":   resp.MiniNewJobsResponse,
+        "test_summary": resp.MiniTestSummaryResponse,
+    })
+}
 
-	// Extract language names
-	var languageNames []string
-	for _, language := range seeker.Languages {
-		// Ensure 'language' is a map (bson.M), and access the "language" key
-		if lang, ok := language["language"].(string); ok {
-			languageNames = append(languageNames, lang) // Collect the language name
-		} else {
-			log.Printf("[WARN] Invalid or missing 'language' field in languages array")
-		}
-	}
+// Fetch seeker document
+func (h *SeekerProfileHandler) fetchSeeker(c *gin.Context, db *mongo.Database, userID string) *models.Seeker {
+    var s models.Seeker
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
 
+    if err := db.Collection("seekers").
+        FindOne(ctx, bson.M{"auth_user_id": userID}).
+        Decode(&s); err != nil {
+        log.Printf("Error fetching seeker: %v", err)
+        return nil
+    }
+    return &s
+}
 
+// Build the Info block
+func (h *SeekerProfileHandler) buildInfo(s models.Seeker) dto.InfoBlocks{
+    return dto.InfoBlocks{
+        AuthUserID:                  s.AuthUserID,
+        SubscriptionTier:            s.SubscriptionTier,
+        DailySelectableJobsCount:    s.DailySelectableJobsCount,
+        DailyGeneratableCV:          s.DailyGeneratableCV,
+        DailyGeneratableCoverletter: s.DailyGeneratableCoverletter,
+        TotalApplications:           s.TotalApplications,
+        TotalJobsAvailable:          0,
+    }
+}
 
-	workExperiencesBson, err := repository.GetWorkExperience(&seeker)
-	if err != nil {
-		log.Fatalf("Error retrieving work experiences: %v", err)
-	}
+// Build the Profile fields
+func (h *SeekerProfileHandler) buildFields(s models.Seeker) dto.Profile {
+    return dto.Profile{
+        FirstName:         repository.DereferenceString(repository.GetOptionalField(s.PersonalInfo, "first_name")),
+        SecondName:        repository.GetOptionalField(s.PersonalInfo, "second_name"),
+        ProfileCompletion: repository.CalculateProfileCompletion(s),
+        PrimaryJobTitle:   s.PrimaryTitle,
+        SecondaryJobTitle: ptrVal(s.SecondaryTitle),
+        TertiaryJobTitle:  ptrVal(s.TertiaryTitle),
+    }
+}
 
-	workExperiences, err := repository.ConvertBsonMToWorkExperienceRequest(workExperiencesBson)
-	if err != nil {
-		log.Fatalf("Error converting work experiences: %v", err)
-	}
+// Build the Checklist
+func (h *SeekerProfileHandler) buildChecklist(s models.Seeker) dto.Checklist {
+    return dto.Checklist{
+        ChecklistPersonalInfo:   len(s.PersonalInfo) > 0,
+        ChecklistWorkExperience: len(s.WorkExperiences) > 0,
+        ChecklistAcademics:      len(s.Academics) > 0,
+        ChecklistPastProjects:   len(s.PastProjects) > 0,
+        ChecklistLanguages:      len(s.Languages) > 0,
+        ChecklistCertifications: len(s.Certificates) > 0,
+        ChecklistJobTitles:      s.PrimaryTitle != "" ||
+            (s.SecondaryTitle != nil && *s.SecondaryTitle != "") ||
+            (s.TertiaryTitle != nil && *s.TertiaryTitle != ""),
+        ChecklistKeySkills: len(s.KeySkills) > 0,
+        ChecklistComplete:  repository.IsChecklistComplete(s),
+    }
+}
 
-	totalMonths, err := repository.GetExperienceInMonths(workExperiences)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error calculating total work experience"})
-		log.Printf("Error calculating total work experience for userID %s: %v", userID, err)
-		return
-	}
-	// Map seeker to SeekerProfileDTO
-	profile := dto.SeekerProfileDTO{
-		AuthUserID:                  seeker.AuthUserID,
-		FirstName:                   repository.DereferenceString(repository.GetOptionalField(seeker.PersonalInfo, "first_name")),
-		SecondName:                  repository.GetOptionalField(seeker.PersonalInfo, "second_name"),
-		Skills:                      seeker.KeySkills,
-		TotalExperienceInMonths:     totalMonths, // Set the correct total experience here
-		Certificates:                repository.ExtractCertificates(seeker.Certificates),
-		PreferredJobTitle:           seeker.PrimaryTitle,
-		SubscriptionTier:            seeker.SubscriptionTier,
-		DailySelectableJobsCount:    seeker.DailySelectableJobsCount,
-		DailyGeneratableCV:          seeker.DailyGeneratableCV,
-		DailyGeneratableCoverletter: seeker.DailyGeneratableCoverletter,
-		TotalApplications:           seeker.TotalApplications,
-		TotalJobsAvailable:          0, // For now, as you said
-		ProfileCompletion:           repository.CalculateProfileCompletion(seeker),
-		Languages:                   languageNames,
-	}
+// Static new job list
+func (h *SeekerProfileHandler) buildMiniJobs() dto.MiniNewJobsResponse {
+    return dto.MiniNewJobsResponse{
+        MiniNewJobs: []dto.MiniJob{
+            {Title: "Backend Engineer", Company: "TechCorp", Location: "Bangalore", ProfileMatch: 85},
+            {Title: "Frontend Developer", Company: "WebWorks", Location: "Chennai", ProfileMatch: 78},
+            {Title: "DevOps Engineer", Company: "CloudSync Ltd.", Location: "Hyderabad", ProfileMatch: 92},
+        },
+    }
+}
 
-	// Send the profile as a response
-	c.JSON(http.StatusOK, profile)
+// Static test summary
+func (h *SeekerProfileHandler) buildMiniTestSummary() dto.MiniTestSummaryResponse {
+    return dto.MiniTestSummaryResponse{
+        Tests: []dto.MiniTest{
+            {Languages: "German", RemainingAttempts: 2, Grade: 78.5, ProficiencyLevel: "Intermediate"},
+            {Languages: "English", RemainingAttempts: 1, Grade: 92.0, ProficiencyLevel: "Advanced"},
+        },
+    }
+}
+
+func ptrVal(s *string) string {
+    if s != nil {
+        return *s
+    }
+    return ""
 }
