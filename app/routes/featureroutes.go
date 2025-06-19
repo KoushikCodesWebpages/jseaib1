@@ -26,8 +26,8 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 	// GET("",seekerHandler.GetSeekerProfile)
 
 	seekerProfileHandler := appuser.NewSeekerProfileHandler()
-	r.Group("/b1/profile", auth).
-		GET("", seekerProfileHandler.GetDashboard)
+	dashBoardRoute := r.Group("/b1/profile", auth)
+	dashBoardRoute.GET("", seekerProfileHandler.GetDashboard)
 
 
 	// savedJobsHandler := appuser.NewSavedJobsHandler()
