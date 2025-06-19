@@ -36,9 +36,10 @@ func SetupRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config) {
 
 	//STATIC
 	// r.Static("/assets", "./public/dist/assets")
-	// r.GET("/", func(c *gin.Context) {
-	// 	c.File("./public/dist/index.html")
-	// })
+	r.GET("/", func(c *gin.Context) {
+		c.String(200, "✅ dev.arshan.digital is running...")
+	})
+
 	// r.NoRoute(func(c *gin.Context) {
 	// 	c.File("./app/templates/noroutes.html")
 	// })
