@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Page Not Found | JSE AI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      background-color: #f4f4f4;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .container {
+      background: white;
+      padding: 2rem 3rem;
+      border-radius: 10px;
+      box-shadow: 0 0 12px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    h1 {
+      color: #d33c43;
+      margin-bottom: 1rem;
+    }
+    p {
+      font-size: 1rem;
+      color: #555;
+    }
+    code {
+      background: #eee;
+      padding: 0.3rem 0.6rem;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>JSE AI Doesn’t Have This Page</h1>
+    <p>Looks like you tried to visit a route that doesn’t exist on the backend.</p>
+    <p>This might be a frontend route or simply a wrong URL.</p>
+    <p><strong>Requested path:</strong> <code id="path"></code></p>
+  </div>
+  <script>
+    document.getElementById("path").textContent = window.location.pathname;
+  </script>
+</body>
+</html>
