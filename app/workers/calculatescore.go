@@ -265,105 +265,105 @@ package workers
 
 
 
-// // func CosineSimilarity(text1, text2 string) (float64, error) {
-// // 	// Tokenize the texts by splitting into words
-// // 	tokens1 := tokenize(text1)
-// // 	tokens2 := tokenize(text2)
+// func CosineSimilarity(text1, text2 string) (float64, error) {
+// 	// Tokenize the texts by splitting into words
+// 	tokens1 := tokenize(text1)
+// 	tokens2 := tokenize(text2)
 
-// // 	// If either of the texts results in no tokens, return an error
-// // 	if len(tokens1) == 0 || len(tokens2) == 0 {
-// // 		return 0, errors.New("one of the input texts is empty after tokenization")
-// // 	}
+// 	// If either of the texts results in no tokens, return an error
+// 	if len(tokens1) == 0 || len(tokens2) == 0 {
+// 		return 0, errors.New("one of the input texts is empty after tokenization")
+// 	}
 
-// // 	// Calculate term frequencies (TF)
-// // 	tf1 := termFrequency(tokens1)
-// // 	tf2 := termFrequency(tokens2)
+// 	// Calculate term frequencies (TF)
+// 	tf1 := termFrequency(tokens1)
+// 	tf2 := termFrequency(tokens2)
 
-// // 	// Calculate dot product and magnitudes
-// // 	dotProduct := 0.0
-// // 	magnitude1 := 0.0
-// // 	magnitude2 := 0.0
+// 	// Calculate dot product and magnitudes
+// 	dotProduct := 0.0
+// 	magnitude1 := 0.0
+// 	magnitude2 := 0.0
 
-// // 	// Calculate the dot product and magnitudes
-// // 	for word, freq1 := range tf1 {
-// // 		freq2 := tf2[word]
-// // 		dotProduct += freq1 * freq2
-// // 		magnitude1 += freq1 * freq1
-// // 	}
+// 	// Calculate the dot product and magnitudes
+// 	for word, freq1 := range tf1 {
+// 		freq2 := tf2[word]
+// 		dotProduct += freq1 * freq2
+// 		magnitude1 += freq1 * freq1
+// 	}
 
-// // 	for _, freq2 := range tf2 {
-// // 		magnitude2 += freq2 * freq2
-// // 	}
+// 	for _, freq2 := range tf2 {
+// 		magnitude2 += freq2 * freq2
+// 	}
 
-// // 	// Compute the cosine similarity
-// // 	if magnitude1 == 0 || magnitude2 == 0 {
-// // 		return 0, errors.New("one of the vectors has zero magnitude")
-// // 	}
+// 	// Compute the cosine similarity
+// 	if magnitude1 == 0 || magnitude2 == 0 {
+// 		return 0, errors.New("one of the vectors has zero magnitude")
+// 	}
 
-// // 	// Calculate cosine similarity in the range of 0 to 1
-// // 	cosineSim := dotProduct / (math.Sqrt(magnitude1) * math.Sqrt(magnitude2))
+// 	// Calculate cosine similarity in the range of 0 to 1
+// 	cosineSim := dotProduct / (math.Sqrt(magnitude1) * math.Sqrt(magnitude2))
 
-// // 	// Convert the cosine similarity to the range of 1 to 100
-// // 	matchScore := cosineSim * 100
-// // 	if matchScore < 0 {
-// // 		matchScore = 0 // Ensure score is non-negative
-// // 	} else if matchScore > 100 {
-// // 		matchScore = 100 // Cap the score at 100
-// // 	}
+// 	// Convert the cosine similarity to the range of 1 to 100
+// 	matchScore := cosineSim * 100
+// 	if matchScore < 0 {
+// 		matchScore = 0 // Ensure score is non-negative
+// 	} else if matchScore > 100 {
+// 		matchScore = 100 // Cap the score at 100
+// 	}
 
-// // 	return matchScore, nil
-// // }
-
-
+// 	return matchScore, nil
+// }
 
 
-// // getDirectMatchScoreFromHuggingFace sends a request to Hugging Face API to get the match score
-// // func getDirectMatchScoreFromHuggingFace(apiKey, seekerText, jobText, model string) (float64, error) {
-// // 	url := fmt.Sprintf("https://api-inference.huggingface.co/models/%s", model)
-// // 	payload := map[string]interface{}{
-// // 		"inputs": fmt.Sprintf("%s %s", seekerText, jobText), // Combine both texts for matching
-// // 	}
 
-// // 	payloadBytes, err := json.Marshal(payload)
-// // 	if err != nil {
-// // 		return 0, fmt.Errorf("error marshaling payload: %v", err)
-// // 	}
 
-// // 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payloadBytes))
-// // 	if err != nil {
-// // 		return 0, fmt.Errorf("error creating request: %v", err)
-// // 	}
+// getDirectMatchScoreFromHuggingFace sends a request to Hugging Face API to get the match score
+// func getDirectMatchScoreFromHuggingFace(apiKey, seekerText, jobText, model string) (float64, error) {
+// 	url := fmt.Sprintf("https://api-inference.huggingface.co/models/%s", model)
+// 	payload := map[string]interface{}{
+// 		"inputs": fmt.Sprintf("%s %s", seekerText, jobText), // Combine both texts for matching
+// 	}
 
-// // 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", apiKey))
-// // 	req.Header.Add("Content-Type", "application/json")
+// 	payloadBytes, err := json.Marshal(payload)
+// 	if err != nil {
+// 		return 0, fmt.Errorf("error marshaling payload: %v", err)
+// 	}
 
-// // 	client := &http.Client{}
-// // 	resp, err := client.Do(req)
-// // 	if err != nil {
-// // 		return 0, fmt.Errorf("error making request to Hugging Face: %v", err)
-// // 	}
-// // 	defer resp.Body.Close()
+// 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(payloadBytes))
+// 	if err != nil {
+// 		return 0, fmt.Errorf("error creating request: %v", err)
+// 	}
 
-// // 	// Check for successful response
-// // 	if resp.StatusCode != http.StatusOK {
-// // 		return 0, fmt.Errorf("error: received non-200 response code: %d", resp.StatusCode)
-// // 	}
+// 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+// 	req.Header.Add("Content-Type", "application/json")
 
-// // 	// Read and parse the response
-// // 	body, err := io.ReadAll(resp.Body)
-// // 	if err != nil {
-// // 		return 0, fmt.Errorf("error reading response: %v", err)
-// // 	}
+// 	client := &http.Client{}
+// 	resp, err := client.Do(req)
+// 	if err != nil {
+// 		return 0, fmt.Errorf("error making request to Hugging Face: %v", err)
+// 	}
+// 	defer resp.Body.Close()
 
-// // 	var response struct {
-// // 		Score float64 `json:"score"`
-// // 	}
-// // 	if err := json.Unmarshal(body, &response); err != nil {
-// // 		return 0, fmt.Errorf("error unmarshaling response: %v", err)
-// // 	}
+// 	// Check for successful response
+// 	if resp.StatusCode != http.StatusOK {
+// 		return 0, fmt.Errorf("error: received non-200 response code: %d", resp.StatusCode)
+// 	}
 
-// // 	return response.Score, nil
-// // }
+// 	// Read and parse the response
+// 	body, err := io.ReadAll(resp.Body)
+// 	if err != nil {
+// 		return 0, fmt.Errorf("error reading response: %v", err)
+// 	}
+
+// 	var response struct {
+// 		Score float64 `json:"score"`
+// 	}
+// 	if err := json.Unmarshal(body, &response); err != nil {
+// 		return 0, fmt.Errorf("error unmarshaling response: %v", err)
+// 	}
+
+// 	return response.Score, nil
+// }
 
 
 // func joinStrings(strs []string, sep string) string {

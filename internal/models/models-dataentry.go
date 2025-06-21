@@ -32,17 +32,17 @@ type PersonalInfo struct {
 // =======================
 
 type WorkExperience struct {
-	ID                  primitive.ObjectID `bson:"_id,omitempty"`
-	AuthUserID          string             `bson:"auth_user_id"`
+	ID                  	primitive.ObjectID `bson:"_id,omitempty"`
+	AuthUserID          	string             `bson:"auth_user_id"`
 
-	JobTitle           string     `json:"job_title"`
-	CompanyName        string     `json:"company_name"`
-	StartDate          time.Time  `json:"start_date"`
-	EndDate            *time.Time `json:"end_date,omitempty"`
-	KeyResponsibilities string    `json:"key_responsibilities"`
-	Location           string     `json:"location"` // not a pointer   // Description of work
-	CreatedAt       time.Time          `bson:"created_at"`
-	UpdatedAt       time.Time          `bson:"updated_at"`
+	JobTitle           		string     			`json:"job_title"`
+	CompanyName        		string     			`json:"company_name"`
+	StartDate          		time.Time  			`json:"start_date"`
+	EndDate            		*time.Time 			`json:"end_date,omitempty"`
+	KeyResponsibilities 	*string    			`json:"key_responsibilities,omitempty"`
+	Location           		string     			`json:"location"` // not a pointer   // Description of work
+	CreatedAt       		time.Time          	`bson:"created_at"`
+	UpdatedAt       		time.Time          	`bson:"updated_at"`
 }
 
 // =======================
@@ -68,15 +68,15 @@ type Academics struct {
 // =======================
 
 type PastProject struct {
-	ID                primitive.ObjectID `bson:"_id,omitempty"`
-	AuthUserID        string             `bson:"auth_user_id"`                    // Link to the user
-	ProjectName       string             `bson:"project_name"`                    // Name of the project
-	Institution       string             `bson:"institution"`                     // University or Company
-	StartDate         time.Time          `bson:"start_date"`                      // Required
-	EndDate           *time.Time         `bson:"end_date,omitempty"`              // Optional
-	ProjectDescription string            `bson:"project_description"`             // Summary or detail of the project
-	CreatedAt         time.Time          `bson:"created_at"`
-	UpdatedAt         time.Time          `bson:"updated_at"`
+	ID                	primitive.ObjectID `bson:"_id,omitempty"`
+	AuthUserID        	string             `bson:"auth_user_id"`                    // Link to the user
+	ProjectName       	string             `bson:"project_name"`                    // Name of the project
+	Institution       	string             `bson:"institution"`                     // University or Company
+	StartDate         	time.Time          `bson:"start_date"`                      // Required
+	EndDate           	*time.Time         `bson:"end_date,omitempty"`              // Optional
+	ProjectDescription 	*string            `bson:"project_description"`             // Summary or detail of the project
+	CreatedAt         	time.Time          `bson:"created_at"`
+	UpdatedAt         	time.Time          `bson:"updated_at"`
 }
 
 // =======================
@@ -100,7 +100,7 @@ type Certificate struct {
 	ID             primitive.ObjectID `bson:"_id,omitempty"`
 	AuthUserID     string             `bson:"auth_user_id"`
 	CertificateName string            `bson:"certificate_name"`  // Name of the certificate
-	Platform        string            `bson:"platform"`          // Platform or issuer (e.g., Coursera, Udemy)
+	Platform        *string            `bson:"platform"`          // Platform or issuer (e.g., Coursera, Udemy)
 	StartDate       time.Time         `bson:"start_date"`        // Required
 	EndDate         *time.Time        `bson:"end_date,omitempty"`// Optional
 	CreatedAt       time.Time         `bson:"created_at"`

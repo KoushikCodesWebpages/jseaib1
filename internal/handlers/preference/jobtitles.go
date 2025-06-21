@@ -85,7 +85,7 @@ func (h *JobTitleHandler) CreateJobTitleOnce(c *gin.Context) {
 	// Update timeline: PreferredJobTitlesCompleted = true
 	timelineUpdate := bson.M{
 		"$set": bson.M{
-			"preferred_job_titles_completed": true,
+			"job_titles_completed": true,
 		},
 	}
 	if _, err := entryTimelineCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, timelineUpdate); err != nil {

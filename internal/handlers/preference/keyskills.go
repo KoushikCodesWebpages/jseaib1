@@ -24,6 +24,7 @@ func (h *KeySkillsHandler) SetKeySkills(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	db := c.MustGet("db").(*mongo.Database)
 	seekersCollection := db.Collection("seekers")
+	timelineCollection := db.Collection("user_entry_timelines")
 
 	var input dto.KeySkillsRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -32,7 +33,7 @@ func (h *KeySkillsHandler) SetKeySkills(c *gin.Context) {
 		return
 	}
 
-	// Clean up skills: remove \n, trim spaces
+	// Clean up skills
 	var cleanedSkills []string
 	for _, skill := range input.Skills {
 		cleaned := strings.ReplaceAll(skill, "\n", "")
@@ -62,6 +63,7 @@ func (h *KeySkillsHandler) SetKeySkills(c *gin.Context) {
 		operation = "created"
 	}
 
+	// Update seeker's key skills
 	update := bson.M{
 		"$set": bson.M{
 			"key_skills": cleanedSkills,
@@ -80,6 +82,18 @@ func (h *KeySkillsHandler) SetKeySkills(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "No matching seeker found"})
 		log.Printf("No seeker found to set key skills for auth_user_id: %s", userID)
 		return
+	}
+
+	// ✅ Update UserEntryTimeline to mark key_skills_completed = true
+	timelineUpdate := bson.M{
+		"$set": bson.M{
+			"key_skills_completed": true,
+		},
+	}
+	_, err = timelineCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, timelineUpdate)
+	if err != nil {
+		log.Printf("Warning: Failed to update key_skills_completed for user timeline. auth_user_id: %s, error: %v", userID, err)
+		// Don't block success response due to timeline update failure
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Key skills " + operation + " successfully"})

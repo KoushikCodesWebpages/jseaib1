@@ -28,6 +28,16 @@ type Checklist struct {
     ChecklistCertifications     bool    `json:"checklist_certifications"`
     ChecklistJobTitles          bool    `json:"checklist_job_titles"`
     ChecklistKeySkills          bool    `json:"checklist_key_skills"`
+    
+    MultifactorAuth             bool    `json:"mfa"`   
+    CVFormatFixed               bool    `json:"cv_format_fixed"`
+    CLFormatFixed               bool    `json:"cl_format_fixed"`
+    ProfileImg                  bool    `json:"profile_img"`
+    DataUsage                   bool    `json:"data_usage"`
+    DataTraining                bool    `json:"data_training"`
+    NumberLock                  bool    `json:"number_lock"`
+    DataFinalization            bool    `json:"data_finalization"`
+    Terms                       bool    `json:"terms"`
     ChecklistComplete           bool    `json:"checklist_complete"`
 }
 
