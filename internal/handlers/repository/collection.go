@@ -122,39 +122,6 @@ func FetchSavedJobIDs(c *gin.Context, col *mongo.Collection, userID string) ([]s
 	return jobIDs, nil
 }
 
-// Convert BSON to []WorkExperienceRequest
-func ConvertBsonMToWorkExperienceRequest(workExperiencesBson []bson.M) ([]dto.WorkExperienceRequest, error) {
-	var workExperiences []dto.WorkExperienceRequest
-
-	for _, weBson := range workExperiencesBson {
-		var we dto.WorkExperienceRequest
-
-		// Start Date (required)
-		startDateRaw, ok := weBson["start_date"].(primitive.DateTime)
-		if !ok {
-			return nil, fmt.Errorf("missing or invalid start_date")
-		}
-		we.StartDate = startDateRaw.Time()
-
-		// End Date (optional)
-		if endDateRaw, exists := weBson["end_date"]; exists && endDateRaw != nil {
-			if endDateDT, ok := endDateRaw.(primitive.DateTime); ok {
-				t := endDateDT.Time()
-				we.EndDate = &t
-			}
-		}
-
-		// Other fields
-		we.CompanyName, _ = weBson["company_name"].(string)
-		we.JobTitle, _ = weBson["job_title"].(string)
-		we.Location, _ = weBson["location"].(string)
-		we.KeyResponsibilities, _ = weBson["key_responsibilities"].(string)
-
-		workExperiences = append(workExperiences, we)
-	}
-
-	return workExperiences, nil
-}
 
 // Get total work experience in months
 func GetExperienceInMonths(workExperiences []dto.WorkExperienceRequest) (int, error) {

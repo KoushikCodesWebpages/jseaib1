@@ -53,7 +53,7 @@ type WorkExperienceRequest struct {
 	Location            string     `json:"location" bson:"location"`
 	StartDate           time.Time  `json:"start_date" binding:"required" bson:"start_date"`
 	EndDate             *time.Time `json:"end_date,omitempty" bson:"end_date,omitempty"`
-	KeyResponsibilities string     `json:"key_responsibilities" binding:"required" bson:"key_responsibilities"`
+	KeyResponsibilities *string     `json:"key_responsibilities" binding:"required" bson:"key_responsibilities"`
 }
 
 // Response payload
@@ -65,7 +65,7 @@ type WorkExperienceResponse struct {
 	Location            string            `json:"location" bson:"location"`
 	StartDate           time.Time          `json:"start_date" bson:"start_date"`
 	EndDate             *time.Time         `json:"end_date,omitempty" bson:"end_date,omitempty"`
-	KeyResponsibilities string             `json:"key_responsibilities" bson:"key_responsibilities"`
+	KeyResponsibilities *string             `json:"key_responsibilities,omitempty" bson:"key_responsibilities,omitempty"`
 	CreatedAt           time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt           time.Time          `json:"updated_at" bson:"updated_at"`
 }
@@ -108,7 +108,7 @@ type PastProjectRequest struct {
 	Institution        string     `json:"institution" binding:"required" bson:"institution"` // University or Company
 	StartDate          time.Time  `json:"start_date" binding:"required" bson:"start_date"`
 	EndDate            *time.Time `json:"end_date,omitempty" bson:"end_date,omitempty"`
-	ProjectDescription string     `json:"project_description" binding:"required" bson:"project_description"`
+	ProjectDescription *string     `json:"project_description" binding:"required" bson:"project_description"`
 }
 
 type PastProjectResponse struct {
@@ -118,7 +118,7 @@ type PastProjectResponse struct {
 	Institution        string             `json:"institution" bson:"institution"`
 	StartDate          time.Time          `json:"start_date" bson:"start_date"`
 	EndDate            *time.Time         `json:"end_date,omitempty" bson:"end_date,omitempty"`
-	ProjectDescription string             `json:"project_description" bson:"project_description"`
+	ProjectDescription *string             `json:"project_description,omitempty" bson:"project_description,omitempty"`
 	CreatedAt          time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt          time.Time          `json:"updated_at" bson:"updated_at"`
 }
@@ -149,7 +149,7 @@ type LanguageResponse struct {
 
 type CertificateRequest struct {
 	CertificateName string     `json:"certificate_name" binding:"required" bson:"certificate_name"`
-	Platform        string     `json:"platform" binding:"required" bson:"platform"`
+	Platform        *string     `json:"platform,omitempty" binding:"required" bson:"platform,omitempty"`
 	StartDate       time.Time  `json:"start_date" binding:"required" bson:"start_date"`
 	EndDate         *time.Time `json:"end_date,omitempty" bson:"end_date,omitempty"`
 }
