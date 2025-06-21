@@ -109,54 +109,53 @@ func (h *PersonalInfoHandler) CreatePersonalInfo(c *gin.Context) {
 // GetPersonalInfo retrieves the personal information
 func (h *PersonalInfoHandler) GetPersonalInfo(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
-	collection := c.MustGet("db").(*mongo.Database).Collection("seekers")
+	db := c.MustGet("db").(*mongo.Database)
+
+	seekerCollection := db.Collection("seekers")
+	authUserCollection := db.Collection("auth_users")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	var seeker models.Seeker
-	err := collection.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker)
+	err := seekerCollection.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker)
 	if err != nil {
-		// Handle case where seeker is not found
 		c.JSON(http.StatusNotFound, gin.H{"error": "Seeker not found"})
 		return
 	}
-
-	// Check if personal info is empty
-	if seeker.PersonalInfo == nil || !repository.IsFieldFilled(seeker.PersonalInfo) {
-		// Respond with 204 No Content and a custom message
-		c.JSON(http.StatusNoContent, gin.H{"message": "Personal information not filled"})
-		return
-	}
-
-	personalInfo, err := repository.GetPersonalInfo(&seeker)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to unmarshal personal info"})
-		return
-	}
-	// Replace or inject values
-	personalInfo.AuthUserID = userID
-
-	// Add email/phone if needed (use pointer to string)
-	// Fetch email & phone from auth_user collection
-	authUserCollection := c.MustGet("db").(*mongo.Database).Collection("auth_users")
 
 	var authUser struct {
 		Email string `bson:"email"`
 		Phone string `bson:"phone"`
 	}
 
-	err = authUserCollection.FindOne(c, bson.M{"auth_user_id": seeker.AuthUserID}).Decode(&authUser)
+	err = authUserCollection.FindOne(ctx, bson.M{"auth_user_id": seeker.AuthUserID}).Decode(&authUser)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch auth user"})
 		return
 	}
 
+	// If personal info is not filled, just return email and phone
+	if seeker.PersonalInfo == nil || !repository.IsFieldFilled(seeker.PersonalInfo) {
+		c.JSON(http.StatusOK, gin.H{
+			"email": authUser.Email,
+			"phone": authUser.Phone,
+		})
+		return
+	}
 
+	// Else return full personal info
+	personalInfo, err := repository.GetPersonalInfo(&seeker)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to unmarshal personal info"})
+		return
+	}
+
+	personalInfo.AuthUserID = userID
 	personalInfo.Email = authUser.Email
 	personalInfo.Phone = authUser.Phone
+
 	c.JSON(http.StatusOK, gin.H{
 		"personal_info": personalInfo,
 	})
-	
 }
