@@ -91,17 +91,16 @@ func (h *SeekerProfileHandler) buildFields(s models.Seeker) dto.Profile {
 // Build the Checklist
 func (h *SeekerProfileHandler) buildChecklist(s models.Seeker) dto.Checklist {
     return dto.Checklist{
-        ChecklistPersonalInfo:   len(s.PersonalInfo) > 0,
-        ChecklistWorkExperience: len(s.WorkExperiences) > 0,
-        ChecklistAcademics:      len(s.Academics) > 0,
-        ChecklistPastProjects:   len(s.PastProjects) > 0,
-        ChecklistLanguages:      len(s.Languages) > 0,
-        ChecklistCertifications: len(s.Certificates) > 0,
-        ChecklistJobTitles:      s.PrimaryTitle != "" ||
-            (s.SecondaryTitle != nil && *s.SecondaryTitle != "") ||
-            (s.TertiaryTitle != nil && *s.TertiaryTitle != ""),
-        ChecklistKeySkills: len(s.KeySkills) > 0,
-        ChecklistComplete:  repository.IsChecklistComplete(s),
+        ChecklistMultifactorAuth: false,
+        ChecklistCVFormatFixed: false,
+        ChecklistCLFormatFixed: false,
+        ChecklistProfileImg: false,
+        ChecklistDataUsage: false,
+        ChecklistDataTraining: false,
+        ChecklistNumberLock: false,
+        ChecklistDataFinalization: false,
+        ChecklistTerms: false,
+        ChecklistComplete: false,
     }
 }
 

@@ -20,24 +20,17 @@ type Profile struct {
 }
 
 type Checklist struct {
-    ChecklistPersonalInfo       bool    `json:"checklist_personal_info"`
-    ChecklistWorkExperience     bool    `json:"checklist_work_experience"`
-    ChecklistAcademics          bool    `json:"checklist_academics"`
-    ChecklistPastProjects       bool    `json:"checklist_past_projects"`
-    ChecklistLanguages          bool    `json:"checklist_languages"`
-    ChecklistCertifications     bool    `json:"checklist_certifications"`
-    ChecklistJobTitles          bool    `json:"checklist_job_titles"`
-    ChecklistKeySkills          bool    `json:"checklist_key_skills"`
     
-    MultifactorAuth             bool    `json:"mfa"`   
-    CVFormatFixed               bool    `json:"cv_format_fixed"`
-    CLFormatFixed               bool    `json:"cl_format_fixed"`
-    ProfileImg                  bool    `json:"profile_img"`
-    DataUsage                   bool    `json:"data_usage"`
-    DataTraining                bool    `json:"data_training"`
-    NumberLock                  bool    `json:"number_lock"`
-    DataFinalization            bool    `json:"data_finalization"`
-    Terms                       bool    `json:"terms"`
+    ChecklistMultifactorAuth             bool    `json:"checklist_mfa"`   
+    ChecklistCVFormatFixed               bool    `json:"checklist_cv_format_fixed"`
+    ChecklistCLFormatFixed               bool    `json:"checklist_cl_format_fixed"`
+    ChecklistProfileImg                  bool    `json:"checklist_profile_img"`
+    ChecklistDataUsage                   bool    `json:"checklist_data_usage"`
+    ChecklistDataTraining                bool    `json:"checklist_data_training"`
+    ChecklistNumberLock                  bool    `json:"checklist_number_lock"`
+    ChecklistDataFinalization            bool    `json:"checklist_data_finalization"`
+    ChecklistTerms                       bool    `json:"checklist_terms"`
+    
     ChecklistComplete           bool    `json:"checklist_complete"`
 }
 
