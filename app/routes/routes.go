@@ -35,14 +35,13 @@ func SetupRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config) {
 
 
 	//STATIC
-	// r.Static("/assets", "./public/dist/assets")
-	r.GET("/ping", func(c *gin.Context) {
-	c.JSON(200, gin.H{"message": "pong"})
-    })
-
-	// r.NoRoute(func(c *gin.Context) {
-	// 	c.File("./app/templates/noroutes.html")
-	// })
+	r.Static("/assets", "./public/dist/assets")
+	r.GET("/", func(c *gin.Context) {
+		c.File("./public/dist/index.html")
+	})
+	r.NoRoute(func(c *gin.Context) {
+		c.File("./app/templates/noroutes.html")
+	})
 	
 	
 
