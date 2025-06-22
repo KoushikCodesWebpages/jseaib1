@@ -4,7 +4,7 @@ import (
 	"RAAS/core/config"
 	"RAAS/core/middlewares"
 	// "RAAS/internal/handlers/features/generation"
-	// "RAAS/internal/handlers/features/jobs"
+	"RAAS/internal/handlers/features/jobs"
 	"RAAS/internal/handlers/features/appuser"
 
 	"github.com/gin-gonic/gin"
@@ -17,7 +17,7 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 
 	// Auth Middleware + Pagination helpers
 	auth := middleware.AuthMiddleware()
-	// paginate := middleware.PaginationMiddleware
+	paginate := middleware.PaginationMiddleware
 
 	// === USER ===
 
@@ -47,8 +47,8 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 
 	// === JOBS ===
 
-	// r.Group("/b1/api/jobs", auth, paginate).
-	// 	GET("", jobs.JobRetrievalHandler)
+	r.Group("/b1/api/jobs", auth, paginate).
+		GET("", jobs.JobRetrievalHandler)
 
 	// linkProviderHandler := jobs.NewLinkProviderHandler()
 	// r.Group("/b1/provide-link", auth).

@@ -19,7 +19,7 @@ func NewGoogleUserRepo(db *mongo.Database) *GoogleUserRepo {
     return &GoogleUserRepo{coll: db.Collection("auth_users")}
 }
 
-func (r *GoogleUserRepo) GetOrCreateFromGoogle(email, name, picture string) (*models.AuthUser, error) {
+func (r *GoogleUserRepo) GetOrCreateFromGoogle(email, name, picture, number string) (*models.AuthUser, error) {
     ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
     defer cancel()
 
@@ -37,6 +37,7 @@ func (r *GoogleUserRepo) GetOrCreateFromGoogle(email, name, picture string) (*mo
         user = models.AuthUser{
             AuthUserID:    authUserID,
             Email:         email,
+            Phone:         number,
             Role:          "seeker",
             EmailVerified: true,
             IsActive:      true,

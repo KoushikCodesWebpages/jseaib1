@@ -26,6 +26,24 @@ func GetSeekerData(db *mongo.Database, userID string) (models.Seeker, error) {
 }
 
 
+
+func ExtractKeySkills(seeker bson.M) []string {
+	val, ok := seeker["key_skills"].(primitive.A)
+	if !ok {
+		return []string{}
+	}
+
+	skills := make([]string, 0, len(val))
+	for _, skill := range val {
+		if str, ok := skill.(string); ok {
+			skills = append(skills, str)
+		}
+	}
+	return skills
+}
+
+
+
 // Extract preferred titles from seeker
 func CollectPreferredTitles(seeker models.Seeker) []string {
 	var titles []string
@@ -85,24 +103,6 @@ func CountJobsByTitles(db *mongo.Database, titles []string) (int64, error) {
 	log.Printf("[DEBUG] Found %d jobs matching given titles", count)
 	return count, nil
 }
-
-
-
-func ExtractKeySkills(seeker bson.M) []string {
-	val, ok := seeker["key_skills"].(primitive.A)
-	if !ok {
-		return []string{}
-	}
-
-	skills := make([]string, 0, len(val))
-	for _, skill := range val {
-		if str, ok := skill.(string); ok {
-			skills = append(skills, str)
-		}
-	}
-	return skills
-}
-
 
 // Helper function to fetch saved job IDs
 func FetchSavedJobIDs(c *gin.Context, col *mongo.Collection, userID string) ([]string, error) {

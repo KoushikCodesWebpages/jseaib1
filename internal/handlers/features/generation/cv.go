@@ -122,10 +122,12 @@ package generation
 // 			"company":          job.Company,
 // 			"location":         job.Location,
 // 			"job_type":         job.JobType,
-// 			"responsibilities": "",
+// 			// "job_lang":,
 // 			"skills":           job.Skills,
 // 			"qualifications":   job.JobDescription,
-// 			"benefits":         "",
+// 		},
+// 		"cv_details":map[string]interface{}{
+// 			"lang": "lang",
 // 		},
 // 	}
 

@@ -47,23 +47,24 @@ func InitDB(cfg *config.Config) (*mongo.Client, *mongo.Database) {
 	// collection := MongoDB.Collection("jobs") // Replace with your actual collection name
 	// SeedJobs(collection)
 
-
 	// Return the client and MongoDB database instances
 	return client, MongoDB
 }
 
+
 // Reset collections if necessary
 func resetCollections() {
 	collections := []string{
-		"admins",
-		"auth_users",
-		"seekers", 
-		"match_scores",
-		"user_entry_timelines",
-		"selected_job_applications",
-		"cover_letters", 
-		"cv", 
-		"saved_jobs", 
+		// "admins",
+		// "auth_users",
+		// "seekers", 
+		// "match_scores",
+		// "user_entry_timelines",
+		// "selected_job_applications",
+		// "cover_letters", 
+		// "cv", 
+		// "saved_jobs", 
+		"jobs",
 		
 	}
 

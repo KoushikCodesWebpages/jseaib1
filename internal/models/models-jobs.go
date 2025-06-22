@@ -14,6 +14,7 @@ import (
 type Job struct {
     JobID          string `bson:"job_id" json:"job_id"`
     Title          string `bson:"title" json:"title"`
+	JobTitle	   string `bson:"job_title" json:"job_title"` 
     Company        string `bson:"company" json:"company"`
     Location       string `bson:"location" json:"location"`
     PostedDate     string `bson:"posted_date" json:"posted_date"`
@@ -21,6 +22,8 @@ type Job struct {
     Processed      bool   `bson:"processed" json:"processed"`
     Source         string `bson:"source" json:"source"`
     JobDescription string `bson:"job_description" json:"job_description"`
+	JobLang		   string `bson:"job_language" json:"job_language"`
+
     JobType        string `bson:"job_type" json:"job_type"`
     Skills         string `bson:"skills" json:"skills"`
     JobLink        string `bson:"job_link" json:"job_link"`
