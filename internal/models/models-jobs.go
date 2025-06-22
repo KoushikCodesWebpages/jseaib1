@@ -14,7 +14,6 @@ import (
 type Job struct {
     JobID          string `bson:"job_id" json:"job_id"`
     Title          string `bson:"title" json:"title"`
-	JobTitle	   string `bson:"job_title" json:"job_title"` 
     Company        string `bson:"company" json:"company"`
     Location       string `bson:"location" json:"location"`
     PostedDate     string `bson:"posted_date" json:"posted_date"`
@@ -22,12 +21,14 @@ type Job struct {
     Processed      bool   `bson:"processed" json:"processed"`
     Source         string `bson:"source" json:"source"`
     JobDescription string `bson:"job_description" json:"job_description"`
-	JobLang		   string `bson:"job_language" json:"job_language"`
-
     JobType        string `bson:"job_type" json:"job_type"`
     Skills         string `bson:"skills" json:"skills"`
     JobLink        string `bson:"job_link" json:"job_link"`
     SelectedCount  int    `bson:"selected_count" json:"selected_count"` // Added selectedCount field
+
+	// New Fields
+	JobLang		   string `bson:"job_language" json:"job_language"`
+	JobTitle	   string `bson:"job_title" json:"job_title"`
 }
 
 func CreateJobIndexes(collection *mongo.Collection) error {
@@ -54,6 +55,11 @@ func CreateJobIndexes(collection *mongo.Collection) error {
 		Keys:    bson.D{{Key: "title", Value: "hashed"}}, // Hashed index on title
 		Options: options.Index().SetUnique(false),       // Not unique
 	}
+		// Hashed index on title for faster lookups based on job title
+	jobLangIndex := mongo.IndexModel{
+		Keys:    bson.D{{Key: "job_language", Value: "hashed"}}, // Hashed index on title
+		Options: options.Index().SetUnique(false),       // Not unique
+	}
 
 	// Index for posted_date (useful for filtering jobs by date)
 	postedDateIndex := mongo.IndexModel{
@@ -63,7 +69,7 @@ func CreateJobIndexes(collection *mongo.Collection) error {
 
 	// Create indexes
 	_, err := collection.Indexes().CreateMany(context.Background(), []mongo.IndexModel{
-		jobIdIndex, jobTypeIndex, selectedCountIndex, jobTitleIndex, postedDateIndex,
+		jobIdIndex, jobTypeIndex, selectedCountIndex, jobTitleIndex, jobLangIndex ,postedDateIndex,
 	})
 	return err
 }
@@ -72,8 +78,8 @@ func CreateJobIndexes(collection *mongo.Collection) error {
 // MatchScore for job seeker match score
 type MatchScore struct {
 	AuthUserID string `json:"auth_user_id" bson:"auth_user_id"`
-	JobID      string    `bson:"jobId" json:"jobId"`          
-	MatchScore float64   `bson:"matchScore" json:"matchScore"` 
+	JobID      string    `bson:"job_id" json:"job_id"`          
+	MatchScore float64   `bson:"match_score" json:"match_score"` 
 }
 
 

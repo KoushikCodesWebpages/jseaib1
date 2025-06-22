@@ -10,13 +10,11 @@ type LinkResponseDTO struct {
 
 // Job Retrieval
 
-
 type JobDTO struct {
     Source         string       `json:"source" bson:"source"`                   // "linkedin" or "xing"
     ID             uint         `json:"id" bson:"id"`                           // UUID or unique DB ID
     JobID          string       `json:"job_id" bson:"job_id"`                   // Platform-specific Job ID
     Title          string       `json:"title" bson:"title"`
-    JobTitle       string       `json:"job_title" bson:"job_title"`
     Company        string       `json:"company" bson:"company"`
     Location       string       `json:"location" bson:"location"`
     PostedDate     string       `json:"posted_date" bson:"posted_date"`
@@ -25,21 +23,23 @@ type JobDTO struct {
     Skills         string       `json:"skills" bson:"skills"`                   // Comma-separated required skills
     UserSkills     []string     `json:"user_skills" bson:"user_skills"`         // List of user skills used in matching
     MatchScore     float64      `json:"match_score" bson:"match_score"`         // Match score from 0 to 100
-    Description    string       `json:"description" bson:"description"`         // Job description text
-    JobLang        string       `json:"job_lang" bson:"job_lang"`
+    Description    string       `json:"description" bson:"description"` 
+    
+    // New Fields  
+    JobLang        string       `json:"job_language" bson:"job_language"`
+    JobTitle       string       `json:"job_title" bson:"job_title"`
+
+    //Extra Fields
+    Selected       bool       `json:"selected" bson:"selected"`
+
 }
 
 // JobFilterDTO represents the filter data for job retrieval.
 type JobFilterDTO struct {
-    Title string `form:"title" bson:"title"` // Query param: /jobs/linkedin?title=developer
+    Title     string `form:"title" bson:"title"`
+    JobLang   string `form:"job_language" bson:"job_language"`
 }
 
-// MatchScoreResponse represents the response containing the match score for a job.
-type MatchScoreResponse struct {
-    SeekerID   string  `json:"seeker_id" bson:"seeker_id"` // Changed to string
-    JobID      string  `json:"job_id" bson:"job_id"`
-    MatchScore float64 `json:"match_score" bson:"match_score"`
-}
 
 type SelectedJobResponse struct {
 	AuthUserID            string             `json:"auth_user_id"`
@@ -71,4 +71,11 @@ type SelectedJobResponse struct {
 
 type SelectedJobApplicationInput struct {
 	JobID string `json:"job_id" binding:"required"` // Only the job_id is required for input
+}
+
+// MatchScoreResponse represents the response containing the match score for a job.
+type MatchScoreResponse struct {
+    SeekerID   string  `json:"seeker_id" bson:"seeker_id"` // Changed to string
+    JobID      string  `json:"job_id" bson:"job_id"`
+    MatchScore float64 `json:"match_score" bson:"match_score"`
 }

@@ -16,6 +16,12 @@ import (
 
 )
 
+
+
+
+
+
+
 func IsChecklistComplete(seeker models.Seeker) bool {
 	return len(seeker.PersonalInfo) > 0 &&
 		len(seeker.WorkExperiences) > 0 &&
@@ -46,19 +52,6 @@ func FindSeekerByUserID(collection *mongo.Collection, userID uuid.UUID) (*models
 func IsFieldFilled(personalInfo bson.M) bool {
 	// Check if the bson.M map is empty
 	return len(personalInfo) > 0
-}
-
-func randomSalary() (int, int) {
-	// Example random salary range logic, adjust as needed
-	minSalary := 25000 // Example minimum salary
-	maxSalary := 35000 // Example maximum salary
-	return minSalary, maxSalary
-}
-
-// Generate expected salary range
-func GenerateSalaryRange() models.SalaryRange {
-	min, max := randomSalary() // Use your existing function
-	return models.SalaryRange{Min: min, Max: max}
 }
 
 func DereferenceString(str *string) string {

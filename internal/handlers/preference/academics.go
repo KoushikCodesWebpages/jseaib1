@@ -65,7 +65,7 @@ func (h *AcademicsHandler) CreateAcademics(c *gin.Context) {
 	// Use AppendToEducation to add the new education
 	if err := repository.AppendToAcademics(&seeker, academics); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process education"})
-		log.Printf("Failed to process education for auth_user_id: %s, Error: %v", userID, err)
+		log.Printf("Failed to process academics for auth_user_id: %s, Error: %v", userID, err)
 		return
 	}
 
@@ -79,7 +79,7 @@ func (h *AcademicsHandler) CreateAcademics(c *gin.Context) {
 	updateResult, err := seekersCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, update)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save education"})
-		log.Printf("Failed to update education for auth_user_id: %s, Error: %v", userID, err)
+		log.Printf("Failed to update academics for auth_user_id: %s, Error: %v", userID, err)
 		return
 	}
 
@@ -103,7 +103,7 @@ func (h *AcademicsHandler) CreateAcademics(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Education added successfully",
+		"message": "Academics added successfully",
 	})
 }
 
