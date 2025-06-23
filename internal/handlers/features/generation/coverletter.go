@@ -16,17 +16,22 @@ import (
     "go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type CoverLetterHandler struct{}
+type InternalCoverLetterHandler struct{}
 
-func NewCoverLetterHandler() *CoverLetterHandler {
-    return &CoverLetterHandler{}
+func NewInternalCoverLetterHandler() *InternalCoverLetterHandler {
+    return &InternalCoverLetterHandler{}
 }
 
-func (h *CoverLetterHandler) PostCoverLetter(c *gin.Context) {
+func (h *InternalCoverLetterHandler) PostCoverLetter(c *gin.Context) {
     db := c.MustGet("db").(*mongo.Database)
     clColl := db.Collection("cover_letters")
+    selColl := db.Collection("selected_job_applications")
+    jobColl := db.Collection("jobs")
+    seekerColl := db.Collection("seekers")
+    authUserColl := db.Collection("auth_users")
 
     userID := c.MustGet("userID").(string)
+
     var req struct {
         JobID string `json:"job_id" binding:"required"`
     }
@@ -35,41 +40,40 @@ func (h *CoverLetterHandler) PostCoverLetter(c *gin.Context) {
         return
     }
 
-    // 1. Check existing
-    var existing models.CoverLetterData
-    err := clColl.FindOne(c, bson.M{"auth_user_id": userID, "job_id": req.JobID}).Decode(&existing)
-    if err == nil {
-        c.JSON(http.StatusOK, existing.CLData)
-        return
+    // Step 1: If already generated, return cached CL
+    var selApp struct {
+        CoverLetterGenerated bool `bson:"cover_letter_generated"`
     }
-    if err != mongo.ErrNoDocuments {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "DB lookup error"})
-        return
+    selErr := selColl.FindOne(c, bson.M{"auth_user_id": userID, "job_id": req.JobID}).Decode(&selApp)
+    if selErr == nil && selApp.CoverLetterGenerated {
+        var existing models.CoverLetterData
+        if err := clColl.FindOne(c, bson.M{"auth_user_id": userID, "job_id": req.JobID}).Decode(&existing); err == nil {
+            c.JSON(http.StatusOK, existing.CLData)
+            return
+        }
     }
 
-    // 2. Build and send ML API payload
-    jobColl := db.Collection("jobs")
-    seekerColl := db.Collection("seekers")
-    authUserColl := db.Collection("auth_users")
-    selectedJobColl := db.Collection("selected_jobs")
-
-    // Fetch data
-    var job = new(models.Job)
-    if err := jobColl.FindOne(c, bson.M{"job_id": req.JobID}).Decode(job); err != nil {
+    // Step 2: Fetch job, seeker and user details
+    var job models.Job
+    if err := jobColl.FindOne(c, bson.M{"job_id": req.JobID}).Decode(&job); err != nil {
         c.JSON(http.StatusNotFound, gin.H{"error": "Job not found"})
         return
     }
-    var seeker = new(models.Seeker)
-    _ = seekerColl.FindOne(c, bson.M{"auth_user_id": userID}).Decode(seeker)
-    var authUser = new(models.AuthUser)
-    _ = authUserColl.FindOne(c, bson.M{"auth_user_id": userID}).Decode(authUser)
-    pInfo, _ := repository.GetPersonalInfo(seeker)
-    we, _ := repository.GetWorkExperience(seeker)
-    certs, _ := repository.GetCertificates(seeker)
-    langs, _ := repository.GetLanguages(seeker)
-    pastProjects, _ := repository.GetPastProjects(seeker)
-    education, _ := repository.GetAcademics(seeker)
 
+    var seeker models.Seeker
+    _ = seekerColl.FindOne(c, bson.M{"auth_user_id": userID}).Decode(&seeker)
+
+    var authUser models.AuthUser
+    _ = authUserColl.FindOne(c, bson.M{"auth_user_id": userID}).Decode(&authUser)
+
+    pInfo, _ := repository.GetPersonalInfo(&seeker)
+    we, _ := repository.GetWorkExperience(&seeker)
+    certs, _ := repository.GetCertificates(&seeker)
+    langs, _ := repository.GetLanguages(&seeker)
+    pastProjects, _ := repository.GetPastProjects(&seeker)
+    education, _ := repository.GetAcademics(&seeker)
+
+    // Step 3: Build ML API payload
     payload := map[string]interface{}{
         "user_details": map[string]interface{}{
             "name":               fmt.Sprintf("%s %s", pInfo.FirstName, *pInfo.SecondName),
@@ -103,34 +107,39 @@ func (h *CoverLetterHandler) PostCoverLetter(c *gin.Context) {
         "cl_data": map[string]string{"language": "English", "spec": ""},
     }
 
+    // Step 4: Call ML API
     mlResp, err := h.callCoverLetterAPI(payload)
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("ML API failed: %v", err)})
         return
     }
 
-    // 3. Save new CL
+    // Step 5: Save CL to Mongo
     _, err = clColl.InsertOne(c, bson.M{
         "auth_user_id": userID,
         "job_id":       req.JobID,
         "cl_data":      mlResp,
     })
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Save failed"})
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save cover letter"})
         return
     }
 
-    // Update user limits & job flag
-    seekerColl.UpdateOne(c, bson.M{"auth_user_id": userID}, bson.M{"$inc": bson.M{"daily_generatable_coverletter": -1}})
-    selectedJobColl.UpdateOne(c,
-        bson.M{"auth_user_id": userID, "job_id": req.JobID},
-        bson.M{"$set": bson.M{"cover_letter_generated": true}},
-    )
+    // Step 6: Upsert into selected_job_applications
+    if err = upsertSelectedJobApp(selColl,userID, req.JobID, "cover_letter","internal"); // or "external" if from third-party API
+    err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update job application status"})
+        return
+    }
 
+    // Step 7: Reduce daily quota
+    seekerColl.UpdateOne(c, bson.M{"auth_user_id": userID}, bson.M{"$inc": bson.M{"daily_generatable_coverletter": -1}})
+
+    // Step 8: Return generated CL JSON
     c.JSON(http.StatusOK, mlResp)
 }
 
-func (h *CoverLetterHandler) PutCoverLetter(c *gin.Context) {
+func (h *InternalCoverLetterHandler) PutCoverLetter(c *gin.Context) {
     db := c.MustGet("db").(*mongo.Database)
     clColl := db.Collection("cover_letters")
     userID := c.MustGet("userID").(string)
@@ -161,7 +170,7 @@ func (h *CoverLetterHandler) PutCoverLetter(c *gin.Context) {
     c.JSON(http.StatusOK, updated.CLData)
 }
 
-func (h *CoverLetterHandler) GetCoverLetter(c *gin.Context) {
+func (h *InternalCoverLetterHandler) GetCoverLetter(c *gin.Context) {
     db := c.MustGet("db").(*mongo.Database)
     clColl := db.Collection("cover_letters")
     userID := c.MustGet("userID").(string)
@@ -187,7 +196,7 @@ func (h *CoverLetterHandler) GetCoverLetter(c *gin.Context) {
 }
 
 
-func (h *CoverLetterHandler) callCoverLetterAPI(payload map[string]interface{}) (map[string]interface{}, error) {
+func (h *InternalCoverLetterHandler) callCoverLetterAPI(payload map[string]interface{}) (map[string]interface{}, error) {
     apiURL, apiKey := config.Cfg.Cloud.CL_Url, config.Cfg.Cloud.GEN_API_KEY
 
     buf, _ := json.Marshal(payload)

@@ -37,10 +37,9 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 	// 	POST("", savedJobsHandler.SaveJob).
 	// 	GET("", savedJobsHandler.GetSavedJobs)
 
-	// selectedJobsHandler := appuser.NewSelectedJobsHandler()
-	// r.Group("/b1/api/selected-jobs", auth, paginate).
-	// 	POST("", selectedJobsHandler.PostSelectedJob).
-	// 	GET("", selectedJobsHandler.GetSelectedJobs)
+	selectedJobsHandler := appuser.NewSelectedJobHandler()
+	r.Group("/b1/api/selected-jobs", auth, paginate).
+		GET("", selectedJobsHandler.GetSelectedJobApplications)
 
 	// myApplicationsHandler := appuser.NewMyApplicationsHandler()
 	// r.Group("/b1/api/my-applications", auth, paginate).
@@ -58,10 +57,10 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 
 	// // === GENERATION ===
 
-	coverLetterHandler := generation.NewCoverLetterHandler()
+	coverLetterHandler := generation.NewInternalCoverLetterHandler()
 
     // Group route under /b1/generate-cover-letter
-    generateCLRoute := r.Group("/b1/generate-cover-letter", auth)
+    generateCLRoute := r.Group("/b1/internal/generate-cover-letter", auth)
     generateCLRoute.POST("", coverLetterHandler.PostCoverLetter)
 	generateCLRoute.PUT("",coverLetterHandler.PutCoverLetter)
 	generateCLRoute.GET("",coverLetterHandler.GetCoverLetter)
