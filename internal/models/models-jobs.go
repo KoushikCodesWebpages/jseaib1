@@ -7,6 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 )
 
@@ -98,9 +99,27 @@ func CreateMatchScoreIndexes(collection *mongo.Collection) error {
 	return err
 }
 
+type CoverLetterData struct {
+    ID          primitive.ObjectID     `bson:"_id,omitempty" json:"id"`
+    AuthUserID  string                 `bson:"auth_user_id" json:"auth_user_id"`
+    JobID       string                 `bson:"job_id" json:"job_id"`
+    CLData      map[string]interface{} `bson:"cl_data" json:"cl_data"`
+}
 
+func CreateCoverLetterIndexes(collection *mongo.Collection) error {
+	// Compound unique index for authUserId and jobId
+	coverLetterIndexes := mongo.IndexModel{
+		Keys:    bson.D{
+			{Key: "authUserId", Value: 1}, // Index on authUserId
+			{Key: "jobId", Value: 1},      // Index on jobId
+		},
+		Options: options.Index().SetUnique(true), // Ensuring the combination is unique
+	}
 
-
+	// Create the compound index
+	_, err := collection.Indexes().CreateOne(context.Background(), coverLetterIndexes)
+	return err
+}
 
 
 

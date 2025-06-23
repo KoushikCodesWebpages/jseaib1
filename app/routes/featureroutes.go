@@ -3,9 +3,11 @@ package routes
 import (
 	"RAAS/core/config"
 	"RAAS/core/middlewares"
+
 	// "RAAS/internal/handlers/features/generation"
-	"RAAS/internal/handlers/features/jobs"
 	"RAAS/internal/handlers/features/appuser"
+	"RAAS/internal/handlers/features/generation"
+	"RAAS/internal/handlers/features/jobs"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -56,9 +58,14 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 
 	// // === GENERATION ===
 
-	// coverLetterHandler := generation.NewCoverLetterHandler()
-	// r.Group("/b1/generate-cover-letter", auth).
-	// 	POST("", coverLetterHandler.PostCoverLetter)
+	coverLetterHandler := generation.NewCoverLetterHandler()
+
+    // Group route under /b1/generate-cover-letter
+    generateCLRoute := r.Group("/b1/generate-cover-letter", auth)
+    generateCLRoute.POST("", coverLetterHandler.PostCoverLetter)
+	generateCLRoute.PUT("",coverLetterHandler.PutCoverLetter)
+	generateCLRoute.GET("",coverLetterHandler.GetCoverLetter)
+
 
 	// resumeHandler := generation.NewResumeHandler()
 	// r.Group("/b1/generate-resume", auth).

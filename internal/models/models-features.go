@@ -117,37 +117,6 @@ func CreateSelectedJobApplicationIndexes(collection *mongo.Collection) error {
 	_, err := collection.Indexes().CreateMany(context.Background(), []mongo.IndexModel{indexModel1, indexModel2, indexModel3, indexModel4})
 	return err
 }
-type CV struct {
-	ID         primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	AuthUserID string             `bson:"auth_user_id" json:"auth_user_id"`
-	JobID      string             `bson:"job_id" json:"job_id"`
-	CVUrl      string             `bson:"cv_url" json:"cv_url"` 
-}
-
-func CreateCVIndexes(collection *mongo.Collection) error {
-	indexModel := mongo.IndexModel{
-		Keys:    bson.D{{Key: "auth_user_id", Value: 1}, {Key: "job_id", Value: 1}},
-		Options: options.Index().SetUnique(true),
-	}
-	_, err := collection.Indexes().CreateOne(context.Background(), indexModel)
-	return err
-}
-
-type CoverLetter struct {
-	ID            primitive.ObjectID `bson:"_id,omitempty" json:"id"`
-	AuthUserID    string             `bson:"auth_user_id" json:"auth_user_id"` // Changed to string
-	JobID         string             `bson:"job_id" json:"job_id"` // Changed to string
-	CoverLetterURL string            `bson:"cover_letter_url" json:"cover_letter_url"` // Changed to string
-}
-
-func CreateCoverLetterIndexes(collection *mongo.Collection) error {
-	indexModel := mongo.IndexModel{
-		Keys:    bson.D{{Key: "auth_user_id", Value: 1}, {Key: "job_id", Value: 1}},
-		Options: options.Index().SetUnique(true),
-	}
-	_, err := collection.Indexes().CreateOne(context.Background(), indexModel)
-	return err
-}
 
 
 type SavedJob struct {

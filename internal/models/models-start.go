@@ -133,10 +133,10 @@ func CreateAllIndexes() {
 			CollectionName:    "cover_letters",
 			CreateIndexesFunc: CreateCoverLetterIndexes, // Add CoverLetter index creation
 		},
-		{
-			CollectionName:    "cv",
-			CreateIndexesFunc: CreateCVIndexes, // Add CV index creation
-		},
+		// {
+		// 	CollectionName:    "cv",
+		// 	CreateIndexesFunc: CreateCVIndexes, // Add CV index creation
+		// },
 		{
 			CollectionName:    "match_scores", // Add MatchScore index creation
 			CreateIndexesFunc: CreateMatchScoreIndexes, // Add MatchScore compound index for authUserId and jobId
