@@ -125,7 +125,7 @@ type CVData struct {
     ID         primitive.ObjectID     `bson:"_id,omitempty" json:"id"`
     AuthUserID string                 `bson:"auth_user_id" json:"auth_user_id"`
     JobID      string                 `bson:"job_id" json:"job_id"`
-    CVContent  map[string]interface{} `bson:"cv_data" json:"cv_data"`
+    CVData  map[string]interface{} `bson:"cv_data" json:"cv_data"`
 }
 
 func CreateCVIndexes(collection *mongo.Collection) error {

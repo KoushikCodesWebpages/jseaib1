@@ -72,6 +72,7 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 	resumeRoute.POST("", resumeHandler.PostCV)
 	// resumeRoute.PUT("", resumeHandler.PutCV)
 	resumeRoute.GET("", resumeHandler.GetCV)
+	resumeRoute.PUT("",resumeHandler.PutCV)
 
 		
 

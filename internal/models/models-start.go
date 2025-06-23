@@ -60,9 +60,9 @@ func resetCollections() {
 		// "seekers", 
 		// "match_scores",
 		// "user_entry_timelines",
-		// "selected_job_applications",
-		// "cover_letters", 
-		// "cv", 
+		"selected_job_applications",
+		"cover_letters", 
+		"cv", 
 		// "saved_jobs", 
 		// "jobs",
 		
