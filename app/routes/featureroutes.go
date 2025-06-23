@@ -66,9 +66,12 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 	generateCLRoute.GET("",coverLetterHandler.GetCoverLetter)
 
 
-	// resumeHandler := generation.NewResumeHandler()
-	// r.Group("/b1/generate-resume", auth).
-	// 	POST("", resumeHandler.PostResume)
+	resumeHandler := generation.NewInternalCVHandler()
+
+	resumeRoute := r.Group("/b1/internal/generate-resume", auth)
+	resumeRoute.POST("", resumeHandler.PostCV)
+	// resumeRoute.PUT("", resumeHandler.PutCV)
+	resumeRoute.GET("", resumeHandler.GetCV)
 
 		
 

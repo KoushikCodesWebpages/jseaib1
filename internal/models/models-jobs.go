@@ -121,6 +121,27 @@ func CreateCoverLetterIndexes(collection *mongo.Collection) error {
 	return err
 }
 
+type CVData struct {
+    ID         primitive.ObjectID     `bson:"_id,omitempty" json:"id"`
+    AuthUserID string                 `bson:"auth_user_id" json:"auth_user_id"`
+    JobID      string                 `bson:"job_id" json:"job_id"`
+    CVContent  map[string]interface{} `bson:"cv_data" json:"cv_data"`
+}
+
+func CreateCVIndexes(collection *mongo.Collection) error {
+	// Compound unique index for authUserId and jobId
+	cvLetterIndexes := mongo.IndexModel{
+		Keys:    bson.D{
+			{Key: "authUserId", Value: 1}, // Index on authUserId
+			{Key: "jobId", Value: 1},      // Index on jobId
+		},
+		Options: options.Index().SetUnique(true), // Ensuring the combination is unique
+	}
+
+	// Create the compound index
+	_, err := collection.Indexes().CreateOne(context.Background(), cvLetterIndexes)
+	return err
+}
 
 
 

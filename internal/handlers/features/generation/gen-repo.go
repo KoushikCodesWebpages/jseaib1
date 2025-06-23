@@ -11,7 +11,8 @@ import (
 
 func upsertSelectedJobApp(
     coll *mongo.Collection,
-    userID, jobID string,
+    userID,
+    jobID string,
     genType string, // "cover_letter", "cv", etc.
     sourceType string, // "internal" | "external"
 ) error {
