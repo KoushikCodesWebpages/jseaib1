@@ -30,6 +30,7 @@ type ApplicationTrackerResponse struct {
 	Status       string 	`json:"status"`
 	Source       string 	`json:"source"`
 }
+
 func (h *ApplicationTrackerHandler) GetApplicationTracker(c *gin.Context) {
     db := c.MustGet("db").(*mongo.Database)
     userID := c.MustGet("userID").(string)
