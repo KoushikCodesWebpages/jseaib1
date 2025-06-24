@@ -5,7 +5,6 @@ import (
 
 	"context"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -51,24 +50,33 @@ func GetMatchScoreForJob(c context.Context, db *mongo.Database, userID, jobID st
 }
 
 
-// Fetch applied job IDs to exclude
-func FetchAppliedJobIDs(c *gin.Context, col *mongo.Collection, userID string) ([]string, error) {
-	jobIDs := []string{} // Always return a non-nil slice
+func FetchAppliedJobIDs(ctx context.Context, collection *mongo.Collection, userID string) ([]string, error) {
+	filter := bson.M{
+		"auth_user_id": userID,
+		"status": bson.M{
+			"$in": []string{"applied", "interview", "rejected", "selected"},
+		},
+	}
 
-	cursor, err := col.Find(c, bson.M{"auth_user_id": userID})
+	cursor, err := collection.Find(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(c)
+	defer cursor.Close(ctx)
 
-	for cursor.Next(c) {
-		var application models.SelectedJobApplication
-		if err := cursor.Decode(&application); err == nil {
-			jobIDs = append(jobIDs, application.JobID)
+	var appliedIDs []string
+	for cursor.Next(ctx) {
+		var result struct {
+			JobID string `bson:"job_id"`
+		}
+		if err := cursor.Decode(&result); err == nil {
+			appliedIDs = append(appliedIDs, result.JobID)
 		}
 	}
-	return jobIDs, nil
+
+	return appliedIDs, nil
 }
+
 
 // Construct the job query filter
 func BuildJobFilter(preferredTitles, appliedJobIDs []string, jobLang string) bson.M {

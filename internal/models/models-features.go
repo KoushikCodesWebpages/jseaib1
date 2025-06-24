@@ -68,7 +68,7 @@ type SelectedJobApplication struct {
 	SelectedDate          	time.Time          	`bson:"selected_date" json:"selected_date"`
 	ViewLink              	bool               	`bson:"view_link" json:"view_link"`
 	Status					string				`bson:"status" json:"status"`
-	Source 					string				`bsoh:"source" json:"source"`
+	Source 					string				`bson:"source" json:"source"`
 	
 }
 
