@@ -1,143 +1,179 @@
 package workers
 
 // import (
-// 	"fmt"
-// 	"log"
-// 	"RAAS/models"
-// 	"gorm.io/gorm"
-// 	"time"
-// 	"strings"
-// 	"github.com/google/uuid"
+//     "context"
+//     "log"
+//     "strings"
+//     "sync"
+//     "time"
+
+//     "github.com/cenkalti/backoff/v4"
+//     "go.mongodb.org/mongo-driver/bson"
+//     "go.mongodb.org/mongo-driver/mongo"
+//     "go.mongodb.org/mongo-driver/mongo/options"
+
+//     "RAAS/core/config"
+//     "RAAS/internal/models"
 // )
 
-// // MatchScoreWorker continuously calculates match scores and stores them
+// type Metrics struct {
+//     TotalCalculations int
+//     Errors            int
+//     Mutex             sync.Mutex
+// }
+
+// func (m *Metrics) IncCalc() {
+//     m.Mutex.Lock()
+//     m.TotalCalculations++
+//     m.Mutex.Unlock()
+// }
+// func (m *Metrics) IncError() {
+//     m.Mutex.Lock()
+//     m.Errors++
+//     m.Mutex.Unlock()
+// }
+
 // type MatchScoreWorker struct {
-// 	DB *gorm.DB
+//     Client  *mongo.Client
+//     Metrics *Metrics
 // }
 
-// func (w *MatchScoreWorker) calculateAndStoreMatchScore(seekerAuthUserID uuid.UUID, jobID string) error {
-// 	log.Printf("📊 Starting match score calculation for Seeker: %s, Job: %s", seekerAuthUserID, jobID)
-
-// 	// Fetch seeker details
-// 	var seeker models.Seeker
-// 	if err := w.DB.Where("auth_user_id = ?", seekerAuthUserID).First(&seeker).Error; err != nil {
-// 		log.Printf("❌ Failed to fetch seeker: %v", err)
-// 		return fmt.Errorf("failed to find seeker: %v", err)
-// 	}
-// 	log.Printf("✅ Fetched seeker: %s", seeker.AuthUserID)
-
-// 	// Fetch job details
-// 	var job models.Job
-// 	if err := w.DB.Where("job_id = ?", jobID).First(&job).Error; err != nil {
-// 		log.Printf("❌ Failed to fetch job: %v", err)
-// 		return fmt.Errorf("failed to find job: %v", err)
-// 	}
-// 	log.Printf("✅ Fetched job: %s - %s", job.JobID, job.Title)
-
-// 	// Calculate the match score
-// 	matchScore, err := CalculateMatchScore(seeker, job)
-// 	if err != nil {
-// 		log.Printf("❌ Failed to calculate match score: %v", err)
-// 		return fmt.Errorf("failed to calculate match score: %v", err)
-// 	}
-// 	log.Printf("✅ Calculated match score: %.2f for Seeker: %s and Job: %s", matchScore, seeker.AuthUserID, job.JobID)
-
-// 	// Create and save match score
-// 	matchScoreEntry := models.MatchScore{
-// 		AuthUserID:   seeker.AuthUserID,
-// 		JobID:      jobID,
-// 		MatchScore: matchScore,
-// 	}
-// 	log.Printf("💾 Saving match score entry for Seeker: %s, Job: %s", seeker.AuthUserID, jobID)
-
-// 	if err := w.DB.Save(&matchScoreEntry).Error; err != nil {
-// 		log.Printf("❌ Failed to save match score to DB: %v", err)
-// 		return fmt.Errorf("failed to save match score: %v", err)
-// 	}
-// 	log.Printf("✅ Match score saved successfully for Seeker: %s, Job: %s", seeker.AuthUserID, jobID)
-
-// 	return nil
+// func NewMatchScoreWorker(client *mongo.Client) *MatchScoreWorker {
+//     return &MatchScoreWorker{
+//         Client:  client,
+//         Metrics: &Metrics{},
+//     }
 // }
 
+// func (w *MatchScoreWorker) calculateAndStore(ctx context.Context, userID, jobID string) {
+//     op := func() error {
+//         return w.calculateAndStoreOnce(ctx, userID, jobID)
+//     }
+//     b := backoff.NewExponentialBackOff()
+//     b.MaxElapsedTime = 2 * time.Minute
+//     b.RandomizationFactor = 0.3
 
-// func (w *MatchScoreWorker) Run() {
-// 	log.Println("✅ MatchScoreWorker started running...")
+//     err := backoff.Retry(op, backoff.WithContext(b, ctx))
+//     if err != nil {
+//         log.Printf("❌ Persistent failure for %s/%s: %v", userID, jobID, err)
+//         w.Metrics.IncError()
+//     }
+// }
 
-// 	for {
-// 		log.Println("🔄 Starting new cycle...")
+// func (w *MatchScoreWorker) calculateAndStoreOnce(ctx context.Context, userID, jobID string) error {
+//     db := w.Client.Database(config.Cfg.Cloud.MongoDBName)
+//     seekerColl := db.Collection("seekers")
+//     jobColl := db.Collection("jobs")
+//     scoreColl := db.Collection("match_scores")
 
-// 		// 1. Fetch all seekers
-// 		var seekers []models.Seeker
-// 		if err := w.DB.Find(&seekers).Error; err != nil {
-// 			log.Printf("❌ Error fetching seekers: %v", err)
-// 			time.Sleep(time.Minute)
-// 			continue
-// 		}
-// 		log.Printf("🔍 Found %d seekers", len(seekers))
+//     var seeker models.Seeker
+//     if err := seekerColl.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
+//         return err
+//     }
+//     var job models.Job
+//     if err := jobColl.FindOne(ctx, bson.M{"job_id": jobID}).Decode(&job); err != nil {
+//         return err
+//     }
 
-// 		// 2. Loop through all seekers
-// 		for _, seeker := range seekers {
-// 			log.Printf("👤 Processing seeker: %s", seeker.AuthUserID)
+//     score, err := CalculateMatchScore(seeker, job)
+//     if err != nil {
+//         return err
+//     }
 
-// 			// Collect preferred titles
-// 			var preferredTitles []string
-// 			if seeker.PrimaryTitle != "" {
-// 				preferredTitles = append(preferredTitles, seeker.PrimaryTitle)
-// 			}
-// 			if seeker.SecondaryTitle != nil && *seeker.SecondaryTitle != "" {
-// 				preferredTitles = append(preferredTitles, *seeker.SecondaryTitle)
-// 			}
-// 			if seeker.TertiaryTitle != nil && *seeker.TertiaryTitle != "" {
-// 				preferredTitles = append(preferredTitles, *seeker.TertiaryTitle)
-// 			}
+//     _, err = scoreColl.UpdateOne(ctx,
+//         bson.M{"auth_user_id": userID, "job_id": jobID},
+//         bson.M{"$set": bson.M{"match_score": score}},
+//         options.Update().SetUpsert(true),
+//     )
+//     if err == nil {
+//         w.Metrics.IncCalc()
+//     }
+//     return err
+// }
 
-// 			log.Printf("🎯 Preferred titles for seeker %s: %v", seeker.AuthUserID, preferredTitles)
+// func (w *MatchScoreWorker) Run(ctx context.Context) {
+//     log.Println("✅ MatchScoreWorker started")
+//     dbName := config.Cfg.Cloud.MongoDBName
 
-// 			if len(preferredTitles) == 0 {
-// 				log.Printf("⚠️ No preferred job titles for seeker %s, skipping", seeker.AuthUserID)
-// 				continue
-// 			}
+//     ticker := time.NewTicker(1 * time.Minute)
+//     defer ticker.Stop()
 
-// 			// Build job title filtering query
-// 			var conditions []string
-// 			var values []interface{}
-// 			for _, title := range preferredTitles {
-// 				conditions = append(conditions, "LOWER(title) LIKE ?")
-// 				values = append(values, "%"+strings.ToLower(title)+"%")
-// 			}
-// 			whereClause := strings.Join(conditions, " OR ")
+//     for {
+//         select {
+//         case <-ctx.Done():
+//             log.Println("🛑 Worker shutdown")
+//             return
+//         case <-ticker.C:
+//             w.processCycle(ctx, dbName)
+//         }
+//     }
+// }
 
-// 			// 3. Fetch matching jobs
-// 			var jobs []models.Job
-// 			if err := w.DB.Where(whereClause, values...).Find(&jobs).Error; err != nil {
-// 				log.Printf("❌ Error fetching jobs for seeker %s: %v", seeker.AuthUserID, err)
-// 				continue
-// 			}
-// 			log.Printf("📄 Found %d matching jobs for seeker %s", len(jobs), seeker.AuthUserID)
+// func (w *MatchScoreWorker) processCycle(ctx context.Context, dbName string) {
+//     ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+//     defer cancel()
 
-// 			// 4. Process each job
-// 			for _, job := range jobs {
-// 				log.Printf("⚙️ Checking job: %s - %s", job.JobID, job.Title)
+//     db := w.Client.Database(dbName)
+//     seekersColl := db.Collection("seekers")
+//     jobsColl := db.Collection("jobs")
+//     scoresColl := db.Collection("match_scores")
 
-// 				// Check if match score already exists
-// 				var existingMatchScore models.MatchScore
-// 				if err := w.DB.Where("seeker_id = ? AND job_id = ?", seeker.AuthUserID, job.JobID).First(&existingMatchScore).Error; err == nil {
-// 					log.Printf("⏭️ Match score already exists for seeker %s and job %s, skipping", seeker.AuthUserID, job.JobID)
-// 					continue
-// 				} else {
-// 					log.Printf("➕ No existing match score, calculating new one...")
-// 				}
+//     seekerCursor, err := seekersColl.Find(ctx, bson.M{"timeline.completed": true}, options.Find().SetBatchSize(200))
+//     if err != nil {
+//         log.Printf("❌ Error fetching seekers: %v", err)
+//         return
+//     }
+//     defer seekerCursor.Close(ctx)
 
-// 				// Calculate and store match score
-// 				if err := w.calculateAndStoreMatchScore(seeker.AuthUserID, job.JobID); err != nil {
-// 					log.Printf("❌ Error calculating match score for seeker %s and job %s: %v", seeker.AuthUserID, job.JobID, err)
-// 				} else {
-// 					log.Printf("✅ Match score calculated and saved for seeker %s and job %s", seeker.AuthUserID, job.JobID)
-// 				}
-// 			}
-// 		}
+//     var wg sync.WaitGroup
+//     for seekerCursor.Next(ctx) {
+//         var seeker models.Seeker
+//         if seekerCursor.Decode(&seeker) != nil {
+//             continue
+//         }
 
-// 		log.Println("🛌 MatchScoreWorker completed cycle. Sleeping 1 minute...")
-// 		time.Sleep(time.Minute)
-// 	}
+//         titles := []string{seeker.PrimaryTitle}
+//         if seeker.SecondaryTitle != nil && *seeker.SecondaryTitle != "" {
+//             titles = append(titles, *seeker.SecondaryTitle)
+//         }
+//         if len(titles) == 0 {
+//             continue
+//         }
+
+//         orClauses := bson.A{}
+//         for _, t := range titles {
+//             orClauses = append(orClauses, bson.M{"title": bson.M{"$regex": "(?i)" + strings.TrimSpace(t)}})
+//         }
+
+//         jobCursor, err := jobsColl.Find(ctx, bson.M{"$or": orClauses}, options.Find().SetBatchSize(200))
+//         if err != nil {
+//             continue
+//         }
+
+//         for jobCursor.Next(ctx) {
+//             var job models.Job
+//             if jobCursor.Decode(&job) != nil {
+//                 continue
+//             }
+
+//             existsErr := scoresColl.FindOne(ctx,
+//                 bson.M{"auth_user_id": seeker.AuthUserID, "job_id": job.JobID},
+//                 options.FindOne().SetProjection(bson.M{"_id": 1}),
+//             ).Err()
+//             if existsErr == nil {
+//                 continue
+//             }
+
+//             wg.Add(1)
+//             go func(uid, jid string) {
+//                 defer wg.Done()
+//                 w.calculateAndStore(ctx, uid, jid)
+//             }(seeker.AuthUserID, job.JobID)
+//         }
+//         jobCursor.Close(ctx)
+//     }
+
+//     wg.Wait()
+//     log.Printf("🧮 Completed cycle: Calculations=%d, Errors=%d",
+//         w.Metrics.TotalCalculations, w.Metrics.Errors)
 // }

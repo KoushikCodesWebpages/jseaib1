@@ -74,7 +74,7 @@ func main() {
 	log.Println("MongoDB connection closed gracefully")
 }
 
-// // startMatchScoreWorker starts the match score worker as a goroutine
+// startMatchScoreWorker starts the match score worker as a goroutine
 // func startMatchScoreWorker(client *mongo.Client) {
 // 	worker := &workers.MatchScoreWorker{
 // 		Client: client,

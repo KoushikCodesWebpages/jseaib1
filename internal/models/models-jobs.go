@@ -78,26 +78,25 @@ func CreateJobIndexes(collection *mongo.Collection) error {
 
 // MatchScore for job seeker match score
 type MatchScore struct {
-	AuthUserID string `json:"auth_user_id" bson:"auth_user_id"`
+	AuthUserID string 	 `json:"auth_user_id" bson:"auth_user_id"`
 	JobID      string    `bson:"job_id" json:"job_id"`          
 	MatchScore float64   `bson:"match_score" json:"match_score"` 
 }
 
-
 func CreateMatchScoreIndexes(collection *mongo.Collection) error {
-	// Compound unique index for authUserId and jobId
-	matchScoreIndex := mongo.IndexModel{
-		Keys:    bson.D{
-			{Key: "authUserId", Value: 1}, // Index on authUserId
-			{Key: "jobId", Value: 1},      // Index on jobId
-		},
-		Options: options.Index().SetUnique(true), // Ensuring the combination is unique
-	}
+    // Create compound unique index on auth_user_id and job_id
+    model := mongo.IndexModel{
+        Keys: bson.D{
+            {Key: "auth_user_id", Value: 1},
+            {Key: "job_id", Value: 1},
+        },
+        Options: options.Index().SetUnique(true),
+    }
 
-	// Create the compound index
-	_, err := collection.Indexes().CreateOne(context.Background(), matchScoreIndex)
-	return err
+    _, err := collection.Indexes().CreateOne(context.Background(), model)
+    return err
 }
+
 
 type CoverLetterData struct {
     ID          primitive.ObjectID     `bson:"_id,omitempty" json:"id"`
@@ -110,8 +109,8 @@ func CreateCoverLetterIndexes(collection *mongo.Collection) error {
 	// Compound unique index for authUserId and jobId
 	coverLetterIndexes := mongo.IndexModel{
 		Keys:    bson.D{
-			{Key: "authUserId", Value: 1}, // Index on authUserId
-			{Key: "jobId", Value: 1},      // Index on jobId
+			{Key: "auth_user_id", Value: 1}, // Index on authUserId
+			{Key: "job_id", Value: 1},      // Index on jobId
 		},
 		Options: options.Index().SetUnique(true), // Ensuring the combination is unique
 	}
@@ -132,8 +131,8 @@ func CreateCVIndexes(collection *mongo.Collection) error {
 	// Compound unique index for authUserId and jobId
 	cvLetterIndexes := mongo.IndexModel{
 		Keys:    bson.D{
-			{Key: "authUserId", Value: 1}, // Index on authUserId
-			{Key: "jobId", Value: 1},      // Index on jobId
+			{Key: "auth_user_id", Value: 1}, // Index on authUserId
+			{Key: "job_id", Value: 1},      // Index on jobId
 		},
 		Options: options.Index().SetUnique(true), // Ensuring the combination is unique
 	}

@@ -83,9 +83,15 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 	route.PUT("/cv",extGenHandler.PutCV)
 	route.PUT("/cl",extGenHandler.PutCoverLetter)
 
-		
+	
 
 	// // JOB METADATA routes
+
+	matchHandler := jobs.NewMatchScoreHandler()
+	r.Group("/b1/matchscores", auth).
+    GET("", matchHandler.GetMatchScores)
+
+
 	// jobDataHandler := features.NewJobDataHandler()
 	// jobMetaRoutes := r.Group("/api/job-data")
 	// jobMetaRoutes.Use(middleware.AuthMiddleware())
@@ -112,7 +118,6 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 	// 	// Route to get all match scores
 	// 	matchScoreRoutes.GET("", matchScoreHandler.GetAllMatchScores)
 	// }
-
 
 	// CVHandler := features.NewCVDownloadHandler(client) // assuming constructor exists like NewCVHandler(client)
 

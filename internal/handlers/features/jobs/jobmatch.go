@@ -1,40 +1,45 @@
 package jobs
 
-// import (
-// 	"net/http"
-// 	"github.com/gin-gonic/gin"
-// 	"gorm.io/gorm"
-// 	"RAAS/dto"
-// 	"RAAS/models"
-// 	//"github.com/google/uuid"
-// )
+import (
+	"RAAS/internal/models"
+	"net/http"
 
-// // MatchScoreHandler handles match score related requests
-// type MatchScoreHandler struct {
-// 	DB *gorm.DB
-// }
+	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	//"github.com/google/uuid"
+)
 
-// func (h *MatchScoreHandler) GetAllMatchScores(c *gin.Context) {
-// 	var matchScores []models.MatchScore
+// MatchScoreHandler handles match score retrieval
+type MatchScoreHandler struct{}
 
-// 	// Fetch all match scores from the database
-// 	if err := h.DB.Find(&matchScores).Error; err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch match scores"})
-// 		return
-// 	}
+func NewMatchScoreHandler() *MatchScoreHandler {
+    return &MatchScoreHandler{}
+}
 
-// 	// Map match scores to response DTO
-// 	var matchScoreResponses []dto.MatchScoreResponse
-// 	for _, matchScore := range matchScores {
-// 		matchScoreResponses = append(matchScoreResponses, dto.MatchScoreResponse{
-// 			SeekerID:   matchScore.AuthUserID,
-// 			JobID:      matchScore.JobID,
-// 			MatchScore: matchScore.MatchScore,
-// 		})
-// 	}
+// GET /b1/match-scores?job_id=...
+func (h *MatchScoreHandler) GetMatchScores(c *gin.Context) {
+    db := c.MustGet("db").(*mongo.Database)
+    coll := db.Collection("match_scores")
+    userID := c.MustGet("userID").(string)
 
-// 	// Return all match scores as a response
-// 	c.JSON(http.StatusOK, gin.H{
-// 		"match_scores": matchScoreResponses,
-// 	})
-// }
+    filter := bson.M{"auth_user_id": userID}
+    if jobID := c.Query("job_id"); jobID != "" {
+        filter["job_id"] = jobID
+    }
+
+    cursor, err := coll.Find(c, filter)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+        return
+    }
+    defer cursor.Close(c)
+
+    var results []models.MatchScore
+    if err := cursor.All(c, &results); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error parsing results"})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{"data": results})
+}
