@@ -63,6 +63,7 @@ func resetCollections() {
 		"selected_job_applications",
 		"cover_letters", 
 		"cv", 
+		"cvs",
 		// "saved_jobs", 
 		// "jobs",
 		

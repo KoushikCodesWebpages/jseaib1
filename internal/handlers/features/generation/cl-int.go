@@ -1,15 +1,12 @@
 package generation
 
 import (
-    "RAAS/core/config"
+
     "RAAS/internal/handlers/repository"
     "RAAS/internal/models"
-    "bytes"
-    "encoding/json"
     "fmt"
-    "io"
+  
     "net/http"
-    "time"
 
     "github.com/gin-gonic/gin"
     "go.mongodb.org/mongo-driver/bson"
@@ -109,7 +106,7 @@ func (h *InternalCoverLetterHandler) PostCoverLetter(c *gin.Context) {
     }
 
     // Step 4: Call ML API
-    mlResp, err := h.callCoverLetterAPI(payload)
+    clResp, err := CallCoverLetterAPI(payload)
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("ML API failed: %v", err)})
         return
@@ -119,38 +116,26 @@ func (h *InternalCoverLetterHandler) PostCoverLetter(c *gin.Context) {
     _, err = clColl.InsertOne(c, bson.M{
         "auth_user_id": userID,
         "job_id":       req.JobID,
-        "cl_data":      mlResp,
+        "cl_data":      clResp,
     })
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save cover letter"})
         return
     }
 
-    // 4. Create or update SJA record
-    now := time.Now()
-    if err == mongo.ErrNoDocuments {
-        // No record yet: insert new
-        _, _ = selColl.InsertOne(c, bson.M{
-            "auth_user_id":           userID,
-            "job_id":                 req.JobID,
-            "cover_letter_generated": true,
-            "cv_generated":           false,
-            "selected_date":          now,
-            "view_link":              false,
-            "status":                 "pending",
-            "source":                 "internal",
-        })
-    } else {
-        // Already exists: update flag
-        _, _ = selColl.UpdateOne(c,
-            bson.M{"auth_user_id": userID, "job_id": req.JobID},
-            bson.M{"$set": bson.M{"cover_letter_generated": true, "selected_date": now}},
-        )
+    // Step 6: Upsert SelectedJobApplication record
+ 
+    if err := upsertSelectedJobApp(selColl, userID, req.JobID, "cover_letter", "internal"); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update job application status"})
+        return
     }
 
     // 5. Decrement daily quota and return response
     seekerColl.UpdateOne(c, bson.M{"auth_user_id": userID}, bson.M{"$inc": bson.M{"daily_generatable_coverletter": -1}})
-    c.JSON(http.StatusOK, mlResp)
+    c.JSON(http.StatusOK, gin.H{
+    "job_id":  req.JobID,
+    "cl_data": clResp,
+})
 }
 
 func (h *InternalCoverLetterHandler) PutCoverLetter(c *gin.Context) {
@@ -181,7 +166,10 @@ func (h *InternalCoverLetterHandler) PutCoverLetter(c *gin.Context) {
         return
     }
 
-    c.JSON(http.StatusOK, updated.CLData)
+    c.JSON(http.StatusOK, gin.H{
+    "job_id":  req.JobID,
+    "cl_data": updated.CLData,
+    })
 }
 
 func (h *InternalCoverLetterHandler) GetCoverLetter(c *gin.Context) {
@@ -206,31 +194,10 @@ func (h *InternalCoverLetterHandler) GetCoverLetter(c *gin.Context) {
         return
     }
 
-    c.JSON(http.StatusOK, stored.CLData)
+    c.JSON(http.StatusOK, gin.H{
+    "job_id":  jobID,
+    "cl_data": stored.CLData,
+    })
 }
 
 
-func (h *InternalCoverLetterHandler) callCoverLetterAPI(payload map[string]interface{}) (map[string]interface{}, error) {
-    apiURL, apiKey := config.Cfg.Cloud.CL_Url, config.Cfg.Cloud.GEN_API_KEY
-
-    buf, _ := json.Marshal(payload)
-    req, _ := http.NewRequest("POST", apiURL, bytes.NewBuffer(buf))
-    req.Header.Set("Authorization", "Bearer "+apiKey)
-    req.Header.Set("Content-Type", "application/json")
-
-    resp, err := http.DefaultClient.Do(req)
-    if err != nil {
-        return nil, err
-    }
-    defer resp.Body.Close()
-    if resp.StatusCode != http.StatusOK {
-        body, _ := io.ReadAll(resp.Body)
-        return nil, fmt.Errorf("API error: %s", string(body))
-    }
-
-    var out map[string]interface{}
-    if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-        return nil, err
-    }
-    return out, nil
-}

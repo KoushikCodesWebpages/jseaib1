@@ -57,9 +57,10 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 
 	// // === GENERATION ===
 
-	coverLetterHandler := generation.NewInternalCoverLetterHandler()
+
 
     // Group route under /b1/generate-cover-letter
+	coverLetterHandler := generation.NewInternalCoverLetterHandler()
     generateCLRoute := r.Group("/b1/internal/generate-cover-letter", auth)
     generateCLRoute.POST("", coverLetterHandler.PostCoverLetter)
 	generateCLRoute.PUT("",coverLetterHandler.PutCoverLetter)
@@ -73,6 +74,14 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 	// resumeRoute.PUT("", resumeHandler.PutCV)
 	resumeRoute.GET("", resumeHandler.GetCV)
 	resumeRoute.PUT("",resumeHandler.PutCV)
+
+
+	extGenHandler := generation.NewExternalJobCVNCLGenerator()
+	route := r.Group("/b1/external/generate", auth)
+	route.POST("", extGenHandler.PostExternalCVNCL)
+	route.GET("", extGenHandler.GetExternalCVNCL)
+	route.PUT("/cv",extGenHandler.PutCV)
+	route.PUT("/cl",extGenHandler.PutCoverLetter)
 
 		
 

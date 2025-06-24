@@ -1,14 +1,12 @@
 package generation
 
 import (
-	"bytes"
-	"encoding/json"
+
 	"fmt"
-	"io"
 	"net/http"
     "time"
 
-	"RAAS/core/config"
+
 	"RAAS/internal/handlers/repository"
 	"RAAS/internal/models"
 
@@ -179,7 +177,7 @@ func (h *InternalCVHandler) PostCV(c *gin.Context) {
     }
 
     // 4. Call ML CV API
-    mlResp, err := h.callCVAPI(payload)
+    cvResp, err := CallCVAPI(payload)
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("CV API failed: %v", err)})
         return
@@ -189,7 +187,7 @@ func (h *InternalCVHandler) PostCV(c *gin.Context) {
     _, err = cvColl.InsertOne(c, bson.M{
         "auth_user_id": userID,
         "job_id":       req.JobID,
-        "cv_data":      mlResp,
+        "cv_data":      cvResp,
     })
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save CV data"})
@@ -202,8 +200,12 @@ func (h *InternalCVHandler) PostCV(c *gin.Context) {
         return
     }
 
+
+    c.JSON(http.StatusOK, gin.H{
+        "job_id":  req.JobID,
+        "cv_data": cvResp,
+    })
     // 7. Return CV JSON
-    c.JSON(http.StatusOK, mlResp)
 }
 
 // GET /b1/generate-cv?job_id=...
@@ -232,7 +234,12 @@ func (h *InternalCVHandler) GetCV(c *gin.Context) {
         return
     }
 
-    c.JSON(http.StatusOK, existing.CVData)
+    c.JSON(http.StatusOK, gin.H{
+        "job_id"    :  jobID,
+        "cv_data"   :  existing.CVData,
+    })
+
+
 }
 
 func (h *InternalCVHandler) PutCV(c *gin.Context) {
@@ -263,34 +270,8 @@ func (h *InternalCVHandler) PutCV(c *gin.Context) {
         return
     }
 
-    c.JSON(http.StatusOK, updated.CVData)
-}
-
-
-// helper to call ML API
-func (h *InternalCVHandler) callCVAPI(payload map[string]interface{}) (map[string]interface{}, error) {
-    apiURL, apiKey := config.Cfg.Cloud.CV_Url, config.Cfg.Cloud.GEN_API_KEY
-
-    buf, _ := json.Marshal(payload)
-    req, _ := http.NewRequest("POST", apiURL, bytes.NewBuffer(buf))
-    req.Header.Set("Authorization", "Bearer "+apiKey)
-    req.Header.Set("Content-Type", "application/json")
-
-    resp, err := http.DefaultClient.Do(req)
-    if err != nil {
-        return nil, err
-    }
-    defer resp.Body.Close()
-
-    if resp.StatusCode != http.StatusOK {
-        body, _ := io.ReadAll(resp.Body)
-        return nil, fmt.Errorf("CV API error: %s", string(body))
-    }
-
-    var out map[string]interface{}
-    if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-        return nil, err
-    }
-
-    return out, nil
+    c.JSON(http.StatusOK, gin.H{
+        "job_id"    :  req.JobID,
+        "cv_data"   :  updated.CVData,
+    })
 }

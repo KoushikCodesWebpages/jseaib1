@@ -122,10 +122,10 @@ func CreateCoverLetterIndexes(collection *mongo.Collection) error {
 }
 
 type CVData struct {
-    ID         primitive.ObjectID     `bson:"_id,omitempty" json:"id"`
-    AuthUserID string                 `bson:"auth_user_id" json:"auth_user_id"`
-    JobID      string                 `bson:"job_id" json:"job_id"`
-    CVData  map[string]interface{} `bson:"cv_data" json:"cv_data"`
+    ID         		primitive.ObjectID     		`bson:"_id,omitempty" json:"id"`
+    AuthUserID 		string                 		`bson:"auth_user_id" json:"auth_user_id"`
+    JobID      		string                 		`bson:"job_id" json:"job_id"`
+    CVData     		map[string]interface{} 	  	`bson:"cv_data" json:"cv_data"`
 }
 
 func CreateCVIndexes(collection *mongo.Collection) error {

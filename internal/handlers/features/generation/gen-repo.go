@@ -7,6 +7,16 @@ import (
     "go.mongodb.org/mongo-driver/mongo"
     "go.mongodb.org/mongo-driver/mongo/options"
     "fmt"
+
+    "bytes"
+    "encoding/json"
+    
+    "io"
+    "net/http"
+
+    "RAAS/core/config"
+
+    
 )
 
 func upsertSelectedJobApp(
@@ -37,4 +47,39 @@ func upsertSelectedJobApp(
     opts := options.Update().SetUpsert(true)
     _, err := coll.UpdateOne(ctx, filter, update, opts)
     return err
+}
+
+func callAPI(apiURL, apiKey string, payload map[string]interface{}) (map[string]interface{}, error) {
+    buf, _ := json.Marshal(payload)
+    req, _ := http.NewRequest("POST", apiURL, bytes.NewBuffer(buf))
+    req.Header.Set("Authorization", "Bearer "+apiKey)
+    req.Header.Set("Content-Type", "application/json")
+
+    resp, err := http.DefaultClient.Do(req)
+    if err != nil {
+        return nil, err
+    }
+    defer resp.Body.Close()
+
+    if resp.StatusCode != http.StatusOK {
+        body, _ := io.ReadAll(resp.Body)
+        return nil, fmt.Errorf("API error: %s", string(body))
+    }
+
+    var out map[string]interface{}
+    if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+        return nil, err
+    }
+
+    return out, nil
+}
+
+// CallCoverLetterAPI wraps callAPI for cover letters
+func CallCoverLetterAPI(payload map[string]interface{}) (map[string]interface{}, error) {
+    return callAPI(config.Cfg.Cloud.CL_Url, config.Cfg.Cloud.GEN_API_KEY, payload)
+}
+
+// CallCVAPI wraps callAPI for CVs
+func CallCVAPI(payload map[string]interface{}) (map[string]interface{}, error) {
+    return callAPI(config.Cfg.Cloud.CV_Url, config.Cfg.Cloud.GEN_API_KEY, payload)
 }
