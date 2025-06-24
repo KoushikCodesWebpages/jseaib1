@@ -20,7 +20,7 @@ import (
 )
 
 func upsertSelectedJobApp(
-    coll *mongo.Collection,
+    db *mongo.Database,
     userID,
     jobID string,
     genType string, // "cover_letter", "cv", etc.
@@ -29,25 +29,92 @@ func upsertSelectedJobApp(
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    // dynamic field name for generated type
-    fieldGen := fmt.Sprintf("%s_generated", genType)
+    seekersColl := db.Collection("seekers")
+    appsColl := db.Collection("selected_job_applications")
 
+    fieldGen := fmt.Sprintf("%s_generated", genType)
     filter := bson.M{"auth_user_id": userID, "job_id": jobID}
-    update := bson.M{
-        "$set": bson.M{
-            fieldGen:       true,
-            "selected_date": time.Now(),
-        },
-        "$setOnInsert": bson.M{
-            "view_link": false,
-            "status":    "pending",
-            "source":     sourceType,
-        },
+
+    // Check if application already exists
+    var existing bson.M
+    err := appsColl.FindOne(ctx, filter).Decode(&existing)
+    isInsert := err == mongo.ErrNoDocuments
+
+    if isInsert {
+        // Only proceed if Seeker has daily count left
+        var seeker struct {
+            DailySelectableJobsCount int `bson:"daily_selectable_jobs_count"`
+        }
+
+        err := seekersColl.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker)
+        if err != nil {
+            return fmt.Errorf("failed to fetch seeker: %w", err)
+        }
+
+        if seeker.DailySelectableJobsCount <= 0 {
+            return fmt.Errorf("daily selectable job limit exceeded")
+        }
+
+        // Begin atomic operations
+        session, err := db.Client().StartSession()
+        if err != nil {
+            return fmt.Errorf("failed to start session: %w", err)
+        }
+        defer session.EndSession(ctx)
+
+        // Transaction block
+        _, err = session.WithTransaction(ctx, func(sc mongo.SessionContext) (interface{}, error) {
+            // Insert or upsert application
+            update := bson.M{
+                "$set": bson.M{
+                    fieldGen:        true,
+                    "selected_date": time.Now(),
+                },
+                "$setOnInsert": bson.M{
+                    "view_link": false,
+                    "status":    "pending",
+                    "source":    sourceType,
+                },
+            }
+
+            opts := options.Update().SetUpsert(true)
+            _, err := appsColl.UpdateOne(sc, filter, update, opts)
+            if err != nil {
+                return nil, err
+            }
+
+            // Decrease DailySelectableJobsCount by 1
+            _, err = seekersColl.UpdateOne(sc,
+                bson.M{"auth_user_id": userID, "daily_selectable_jobs_count": bson.M{"$gt": 0}},
+                bson.M{"$inc": bson.M{"daily_selectable_jobs_count": -1}},
+            )
+            if err != nil {
+                return nil, err
+            }
+
+            return nil, nil
+        })
+
+        if err != nil {
+            return fmt.Errorf("transaction failed: %w", err)
+        }
+    } else {
+        // Only update the generated field if already exists
+        update := bson.M{
+            "$set": bson.M{
+                fieldGen:        true,
+                "selected_date": time.Now(),
+            },
+        }
+        _, err := appsColl.UpdateOne(ctx, filter, update)
+        if err != nil {
+            return err
+        }
     }
-    opts := options.Update().SetUpsert(true)
-    _, err := coll.UpdateOne(ctx, filter, update, opts)
-    return err
+
+    return nil
 }
+
 
 func callAPI(apiURL, apiKey string, payload map[string]interface{}) (map[string]interface{}, error) {
     buf, _ := json.Marshal(payload)

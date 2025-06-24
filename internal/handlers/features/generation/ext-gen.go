@@ -36,7 +36,6 @@ func (h *ExternalJobCVNCLGenerator) PostExternalCVNCL(c *gin.Context) {
         JobTitle       string `json:"job_title" binding:"required"`
         JobLink        string `json:"link" binding:"required"`
         JobDescription string `json:"description" binding:"required"`
-        Source         string `json:"source" binding:"required"` // "external"
     }
     if err := c.ShouldBindJSON(&req); err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
@@ -63,6 +62,17 @@ func (h *ExternalJobCVNCLGenerator) PostExternalCVNCL(c *gin.Context) {
             }
         }
     }
+
+    if err := upsertSelectedJobApp(db, userID, req.JobID, "cover_letter", "external"); err != nil {
+        c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+        return
+    }
+    if err := upsertSelectedJobApp(db, userID, req.JobID, "cv", "external"); err != nil {
+        c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+        return
+    }
+
+
 	//Step 2: Obtain Data for processing.
 	    var seeker models.Seeker
     seekerColl.FindOne(c, bson.M{"auth_user_id": userID}).Decode(&seeker)
@@ -203,9 +213,7 @@ func (h *ExternalJobCVNCLGenerator) PostExternalCVNCL(c *gin.Context) {
     cvColl.InsertOne(c, bson.M{"auth_user_id": userID, "job_id": req.JobID, "cv_data": cvResp})
     clColl.InsertOne(c, bson.M{"auth_user_id": userID, "job_id": req.JobID, "cl_data": clResp})
 
-    // Step 5: Update tracking once per document type
-    upsertSelectedJobApp(selColl, userID, req.JobID, "cv", req.Source)
-    upsertSelectedJobApp(selColl, userID, req.JobID, "cover_letter", req.Source)
+    
 
 	// limit decrement
     seekerColl.UpdateOne(c, bson.M{"auth_user_id":userID}, bson.M{"$inc": bson.M{"daily_generatable_coverletter": -1}})

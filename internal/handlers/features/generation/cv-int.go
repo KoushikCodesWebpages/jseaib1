@@ -55,7 +55,12 @@ func (h *InternalCVHandler) PostCV(c *gin.Context) {
         }
     }
 
-    // 2. Fetch supporting data
+    // Step 2: Upsert first to validate limits and track usage
+	if err := upsertSelectedJobApp(db, userID, req.JobID, "cv", "internal"); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
+	}
+    // 3. Fetch supporting data
     var job models.Job
 	
     if err := jobColl.FindOne(c, bson.M{"job_id": req.JobID}).Decode(&job); err != nil {
@@ -143,7 +148,7 @@ func (h *InternalCVHandler) PostCV(c *gin.Context) {
         experienceSummaries = append(experienceSummaries, summary)
     }
 
-    // 3. Build payload matching your required structure
+    // 4. Build payload matching your required structure
     payload := map[string]interface{}{
         "user_details": map[string]interface{}{
             "name":               fmt.Sprintf("%s %s", pInfo.FirstName, *pInfo.SecondName),
@@ -177,7 +182,7 @@ func (h *InternalCVHandler) PostCV(c *gin.Context) {
         "cv_data": map[string]string{"language": "English", "spec": ""},
     }
 
-    // 4. Call ML CV API
+    // 5. Call ML CV API
     cvResp, err := CallCVAPI(payload)
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("CV API failed: %v", err)})
@@ -188,7 +193,7 @@ func (h *InternalCVHandler) PostCV(c *gin.Context) {
     c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user or job ID"})
     return
     }
-    // 5. Save generated CV JSON
+    // 6. Save generated CV JSON
     _, err = cvColl.InsertOne(c, bson.M{
         "auth_user_id": userID,
         "job_id":       req.JobID,
@@ -200,19 +205,10 @@ func (h *InternalCVHandler) PostCV(c *gin.Context) {
     return
 }
 
-
-    // 6. Upsert tracking entry
-    if err := upsertSelectedJobApp(selColl, userID, req.JobID, "cv", "internal"); err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update application status"})
-        return
-    }
-
-
     c.JSON(http.StatusOK, gin.H{
         "job_id":  req.JobID,
         "cv_data": cvResp,
     })
-    // 7. Return CV JSON
 }
 
 // GET /b1/generate-cv?job_id=...
