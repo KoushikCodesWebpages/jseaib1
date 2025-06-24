@@ -9,6 +9,7 @@ import (
 
 	"RAAS/internal/handlers/repository"
 	"RAAS/internal/models"
+    "log"
 
 	"github.com/gin-gonic/gin"
     "go.mongodb.org/mongo-driver/mongo/options"
@@ -183,6 +184,10 @@ func (h *InternalCVHandler) PostCV(c *gin.Context) {
         return
     }
 
+    if userID == "" || req.JobID == "" {
+    c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user or job ID"})
+    return
+    }
     // 5. Save generated CV JSON
     _, err = cvColl.InsertOne(c, bson.M{
         "auth_user_id": userID,
@@ -190,9 +195,11 @@ func (h *InternalCVHandler) PostCV(c *gin.Context) {
         "cv_data":      cvResp,
     })
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save CV data"})
-        return
-    }
+    log.Printf("InsertOne error: %v", err)
+    c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save CV data"})
+    return
+}
+
 
     // 6. Upsert tracking entry
     if err := upsertSelectedJobApp(selColl, userID, req.JobID, "cv", "internal"); err != nil {
