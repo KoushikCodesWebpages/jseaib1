@@ -65,16 +65,16 @@ func ResetDBHandler(c *gin.Context) {
 
 	// Clean each collection where user data might exist
 	collections := []string{
-		"seekers", 
-		"user_entry_timelines", 
+		// "seekers", 
+		// "user_entry_timelines", 
 		"cover_letters", 
 		"cv", 
 		"selected_job_applications",
-		"jobs", 
-		"admins",
-		"match_scores", 
-		"auth_users",
-		"saved_jobs",
+		// "jobs", 
+		// "admins",
+		// "match_scores", 
+		// "auth_users",
+		// "saved_jobs",
 	}
 
 	// Delete user data from each collection
