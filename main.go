@@ -1,85 +1,67 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
-	"RAAS/core/config"
-	"RAAS/app/routes"
-	"RAAS/app/workers"
-	"RAAS/internal/models" 
-
-
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
-	"context"
 
-	// Import the models package to use InitDB
+	"github.com/gin-gonic/gin"
 
-	// "go.mongodb.org/mongo-driver/mongo"
+	"RAAS/app/routes"
+	"RAAS/app/workers"
+	"RAAS/core/config"
+	"RAAS/internal/models"
 )
 
 func main() {
 	gin.SetMode(gin.ReleaseMode)
 
-	// Initialize the configuration
-	err := config.InitConfig()
-	if err != nil {
+	// Initialize configuration
+	if err := config.InitConfig(); err != nil {
 		log.Fatalf("Error initializing config: %v", err)
 	}
 
-	// Initialize MongoDB client and database using models.InitDB
-	client, db := models.InitDB(config.Cfg) // Get both client and database
+	// Initialize MongoDB
+	client, _ := models.InitDB(config.Cfg)
 
-	// ✅ Start the match score worker properly
-	// startMatchScoreWorker(client)
-	go workers.StartDailyWorker(client.Database(db.Name()))
-
-	// Set up the Gin router
+	// Set up HTTP router
 	r := gin.Default()
-	routes.SetupRoutes(r, client, config.Cfg) // Pass client (mongo.Client) to SetupRoutes
+	routes.SetupRoutes(r, client, config.Cfg)
 
-	// Get the server port from config or environment variable
+	// Launch worker
+	worker := workers.NewMatchScoreWorker(client)
+	ctx, cancel := context.WithCancel(context.Background())
+	go worker.Run(ctx)
+
+	// Start server
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = fmt.Sprintf("%d", config.Cfg.Server.ServerPort)
-		log.Printf("Starting server on dev port: http://localhost:%s", port)
+		log.Printf("🌐 Starting server on dev port: http://localhost:%s", port)
 	} else {
-		log.Printf("Starting server on prod port: %s", port)
+		log.Printf("🌐 Starting server on prod port: %s", port)
 	}
 
-	// Run the Gin server
 	go func() {
-		err = r.Run(":" + port)
-		if err != nil {
+		if err := r.Run(":" + port); err != nil {
 			log.Fatalf("Failed to start server: %v", err)
 		}
 	}()
 
-	// Graceful shutdown handling for server and MongoDB connection
+	// Wait for termination
 	shutdownSignal := make(chan os.Signal, 1)
 	signal.Notify(shutdownSignal, syscall.SIGINT, syscall.SIGTERM)
-
 	<-shutdownSignal
 
-	log.Println("Shutting down server...")
+	log.Println("🛑 Shutting down server and worker...")
+	cancel()
 
-	// Close MongoDB client gracefully
-	err = client.Disconnect(context.TODO()) // Disconnect the client
-	if err != nil {
+	// Cleanup MongoDB
+	if err := client.Disconnect(context.TODO()); err != nil {
 		log.Fatalf("Error disconnecting MongoDB: %v", err)
 	}
-
-	log.Println("MongoDB connection closed gracefully")
+	log.Println("✅ MongoDB connection closed gracefully")
 }
-
-// startMatchScoreWorker starts the match score worker as a goroutine
-// func startMatchScoreWorker(client *mongo.Client) {
-// 	worker := &workers.MatchScoreWorker{
-// 		Client: client,
-// 	}
-// 	go worker.Run()
-// }
-
-// ✅ Run DailyWorker every day (can be adjusted)

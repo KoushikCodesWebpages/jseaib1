@@ -58,7 +58,7 @@ func resetCollections() {
 		// "admins",
 		// "auth_users",
 		// "seekers", 
-		// "match_scores",
+		"match_scores",
 		// "user_entry_timelines",
 		"selected_job_applications",
 		"cover_letters", 

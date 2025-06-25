@@ -8,6 +8,7 @@ import (
 	"RAAS/internal/handlers/features/appuser"
 	"RAAS/internal/handlers/features/generation"
 	"RAAS/internal/handlers/features/jobs"
+	"RAAS/internal/handlers"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -60,7 +61,7 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 	GET("", applicationTrackerHandler.GetApplicationTracker).
 	PUT("/:job_id/status", applicationTrackerHandler.UpdateApplicationStatus)
 
-
+	r.GET("/b1/test/academics/dates", handlers.TestAcademicDatesHandler)
 	// // === GENERATION ===
 
 

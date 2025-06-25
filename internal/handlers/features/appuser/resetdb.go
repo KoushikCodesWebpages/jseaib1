@@ -72,7 +72,7 @@ func ResetDBHandler(c *gin.Context) {
 		"selected_job_applications",
 		// "jobs", 
 		// "admins",
-		// "match_scores", 
+		"match_scores", 
 		// "auth_users",
 		// "saved_jobs",
 	}

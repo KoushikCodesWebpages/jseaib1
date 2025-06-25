@@ -15,6 +15,7 @@ import (
     "go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+    "go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type InternalCVHandler struct{}
@@ -122,29 +123,28 @@ func (h *InternalCVHandler) PostCV(c *gin.Context) {
     //  Format experience summary
     experienceSummaries := []string{}
     for _, e := range experienceSummaryObjs {
-        // Parse start_date
-        startRaw, _ := e["start_date"].(time.Time)
-        startStr := startRaw.Format("Jan 2006")
-        
-        // Parse end_date; handle ongoing roles
-        endStr := "Present"
-        if endRaw, ok := e["end_date"].(time.Time); ok {
-            endStr = endRaw.Format("Jan 2006")
+        // Handle start_date
+        startStr := ""
+        if startVal, ok := e["start_date"].(primitive.DateTime); ok {
+            startStr = startVal.Time().Format("Jan 2006")
         }
 
-        // Build the period string
+        // Handle end_date
+        endStr := "Present"
+        if endVal, ok := e["end_date"].(primitive.DateTime); ok && !endVal.Time().IsZero() {
+            endStr = endVal.Time().Format("Jan 2006")
+        }
+
+        // Period string
         period := fmt.Sprintf("%s – %s", startStr, endStr)
 
-        // Extract other fields
+        // Extract fields
         position, _ := e["job_title"].(string)
         company, _ := e["company_name"].(string)
         description, _ := e["key_responsibilities"].(string)
 
-        // Assemble the summary
-        summary := fmt.Sprintf(
-            "%s at %s (%s): %s",
-            position, company, period, description,
-        )
+        // Final summary
+        summary := fmt.Sprintf("%s at %s (%s): %s", position, company, period, description)
         experienceSummaries = append(experienceSummaries, summary)
     }
 

@@ -98,6 +98,7 @@ func CreateMatchScoreIndexes(collection *mongo.Collection) error {
 }
 
 
+
 type CoverLetterData struct {
     ID          primitive.ObjectID     `bson:"_id,omitempty" json:"id"`
     AuthUserID  string                 `bson:"auth_user_id" json:"auth_user_id"`
