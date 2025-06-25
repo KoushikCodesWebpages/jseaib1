@@ -108,9 +108,9 @@ func (h *SeekerProfileHandler) buildChecklist(s models.Seeker) dto.Checklist {
 func (h *SeekerProfileHandler) buildMiniJobs() dto.MiniNewJobsResponse {
     return dto.MiniNewJobsResponse{
         MiniNewJobs: []dto.MiniJob{
-            {Title: "Backend Engineer", Company: "TechCorp", Location: "Bangalore", ProfileMatch: 85},
-            {Title: "Frontend Developer", Company: "WebWorks", Location: "Chennai", ProfileMatch: 78},
-            {Title: "DevOps Engineer", Company: "CloudSync Ltd.", Location: "Hyderabad", ProfileMatch: 92},
+            {Title: "Backend Engineer", Company: "TechCorp", Location: "Berlin, Germany", ProfileMatch: 85},
+            {Title: "Frontend Developer", Company: "WebWorks", Location: "Bavaria, Germany", ProfileMatch: 78},
+            {Title: "DevOps Engineer", Company: "CloudSync Ltd.", Location: "Baden-Württemberg, Germany", ProfileMatch: 92},
         },
     }
 }
