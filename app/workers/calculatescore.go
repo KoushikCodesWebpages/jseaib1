@@ -164,7 +164,7 @@ func CalculateMatchScore(seeker models.Seeker, job models.Job) (float64, error) 
         0.1*langScore +
         0.1*titleScore
 
-    scaled := 50 + 40 * sigmoid((final - 0.5) * 10)
+    scaled := 60 + math.Pow(final, 1.5) * 30
     return scaled, nil
 }
 
