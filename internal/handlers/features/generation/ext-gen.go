@@ -7,12 +7,12 @@ import (
 
     "fmt"
     "net/http"
-    "time"
 
     "github.com/gin-gonic/gin"
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+    "go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type ExternalJobCVNCLGenerator struct{}
@@ -88,24 +88,26 @@ func (h *ExternalJobCVNCLGenerator) PostExternalCVNCL(c *gin.Context) {
         educationObjs, _ := repository.GetAcademics(&seeker)
 
     // 1️⃣ Build education strings
-    education := []string{}
-    for _, e := range educationObjs {
-        degree, _ := e["degree"].(string)
-        field, _ := e["field_of_study"].(string)
-        inst, _ := e["institution"].(string)
+	education := []string{}
+	for _, e := range educationObjs {
+		degree, _ := e["degree"].(string)
+		field, _ := e["field_of_study"].(string)
+		inst, _ := e["institution"].(string)
 
-        // Parse the Go Time object
-        start, _ := e["start_date"].(time.Time)
-        startStr := start.Format("Jan 2006") // e.g. "Jul 2018"
+		// Handle start_date
+		startStr := "Unknown"
+		if startRaw, ok := e["start_date"].(primitive.DateTime); ok && !startRaw.Time().IsZero() {
+			startStr = startRaw.Time().Format("Jan 2006")
+		}
+		// Handle end_date
+		endStr := "Present"
+		if endRaw, ok := e["end_date"].(primitive.DateTime); ok && !endRaw.Time().IsZero() {
+			endStr = endRaw.Time().Format("Jan 2006")
+		}
 
-        endStr := "Present"
-        if endRaw, ok := e["end_date"].(time.Time); ok && !endRaw.IsZero() {
-            endStr = endRaw.Format("Jan 2006")
-        }
-
-        period := fmt.Sprintf("%s – %s", startStr, endStr)
-        education = append(education, fmt.Sprintf("%s in %s at %s (%s)", degree, field, inst, period))
-    }
+		period := fmt.Sprintf("%s – %s", startStr, endStr)
+		education = append(education, fmt.Sprintf("%s in %s at %s (%s)", degree, field, inst, period))
+	}
 
 
     // 2️⃣ Extract cert titles
@@ -128,32 +130,28 @@ func (h *ExternalJobCVNCLGenerator) PostExternalCVNCL(c *gin.Context) {
     }
     //  Format experience summary
     experienceSummaries := []string{}
-    for _, e := range experienceSummaryObjs {
-        // Parse start_date
-        startRaw, _ := e["start_date"].(time.Time)
-        startStr := startRaw.Format("Jan 2006")
-        
-        // Parse end_date; handle ongoing roles
-        endStr := "Present"
-        if endRaw, ok := e["end_date"].(time.Time); ok {
-            endStr = endRaw.Format("Jan 2006")
-        }
+	for _, e := range experienceSummaryObjs {
+		// Handle start_date
+		startStr := "Unknown"
+		if startRaw, ok := e["start_date"].(primitive.DateTime); ok && !startRaw.Time().IsZero() {
+			startStr = startRaw.Time().Format("Jan 2006")
+		}
 
-        // Build the period string
-        period := fmt.Sprintf("%s – %s", startStr, endStr)
+		// Handle end_date
+		endStr := "Present"
+		if endRaw, ok := e["end_date"].(primitive.DateTime); ok && !endRaw.Time().IsZero() {
+			endStr = endRaw.Time().Format("Jan 2006")
+		}
 
-        // Extract other fields
-        position, _ := e["job_title"].(string)
-        company, _ := e["company_name"].(string)
-        description, _ := e["key_responsibilities"].(string)
+		// Extract other fields
+		position, _ := e["job_title"].(string)
+		company, _ := e["company_name"].(string)
+		description, _ := e["key_responsibilities"].(string)
 
-        // Assemble the summary
-        summary := fmt.Sprintf(
-            "%s at %s (%s): %s",
-            position, company, period, description,
-        )
-        experienceSummaries = append(experienceSummaries, summary)
-    }
+		// Assemble summary
+		summary := fmt.Sprintf("%s at %s (%s – %s): %s", position, company, startStr, endStr, description)
+		experienceSummaries = append(experienceSummaries, summary)
+	}
 
 	// Shared user details
     userDetails := map[string]interface{}{

@@ -126,7 +126,7 @@ func (w *MatchScoreWorker) Run(ctx context.Context) {
 }
 
 func (w *MatchScoreWorker) processCycle(ctx context.Context, dbName string) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	db := w.Client.Database(dbName)

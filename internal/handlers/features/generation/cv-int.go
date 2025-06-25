@@ -4,7 +4,7 @@ import (
 
 	"fmt"
 	"net/http"
-    "time"
+
 
 
 	"RAAS/internal/handlers/repository"
@@ -82,24 +82,26 @@ func (h *InternalCVHandler) PostCV(c *gin.Context) {
         educationObjs, _ := repository.GetAcademics(&seeker)
 
     // 1️⃣ Build education strings
-    education := []string{}
-    for _, e := range educationObjs {
-        degree, _ := e["degree"].(string)
-        field, _ := e["field_of_study"].(string)
-        inst, _ := e["institution"].(string)
+	education := []string{}
+	for _, e := range educationObjs {
+		degree, _ := e["degree"].(string)
+		field, _ := e["field_of_study"].(string)
+		inst, _ := e["institution"].(string)
 
-        // Parse the Go Time object
-        start, _ := e["start_date"].(time.Time)
-        startStr := start.Format("Jan 2006") // e.g. "Jul 2018"
+		// Handle start_date
+		startStr := "Unknown"
+		if startRaw, ok := e["start_date"].(primitive.DateTime); ok && !startRaw.Time().IsZero() {
+			startStr = startRaw.Time().Format("Jan 2006")
+		}
+		// Handle end_date
+		endStr := "Present"
+		if endRaw, ok := e["end_date"].(primitive.DateTime); ok && !endRaw.Time().IsZero() {
+			endStr = endRaw.Time().Format("Jan 2006")
+		}
 
-        endStr := "Present"
-        if endRaw, ok := e["end_date"].(time.Time); ok && !endRaw.IsZero() {
-            endStr = endRaw.Format("Jan 2006")
-        }
-
-        period := fmt.Sprintf("%s – %s", startStr, endStr)
-        education = append(education, fmt.Sprintf("%s in %s at %s (%s)", degree, field, inst, period))
-    }
+		period := fmt.Sprintf("%s – %s", startStr, endStr)
+		education = append(education, fmt.Sprintf("%s in %s at %s (%s)", degree, field, inst, period))
+	}
 
 
     // 2️⃣ Extract cert titles
