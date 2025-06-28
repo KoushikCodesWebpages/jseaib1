@@ -36,47 +36,54 @@ func (r *UserRepo) ValidateSeekerSignUpInput(input dto.SeekerSignUpInput) error 
 	return nil
 }
 
-func (r *UserRepo) CheckDuplicateEmailOrPhone(email, phone string) (bool, bool, error) {
+func (r *UserRepo) CheckDuplicateEmail(email string) (bool, error) {
 	var user models.AuthUser
-
-	filter := bson.M{
-		"$or": []bson.M{
-			{"email": email},
-			{"phone": phone},
-		},
-	}
-
-	err := r.DB.Collection("auth_users").FindOne(context.TODO(), filter).Decode(&user)
+	err := r.DB.Collection("auth_users").FindOne(context.TODO(), bson.M{"email": email}).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			return false, false, nil
+			return false, nil
 		}
-		return false, false, fmt.Errorf("failed to check email or phone: %w", err)
+		return false, err
 	}
-
-	emailExists := user.Email == email
-	phoneExists := user.Phone == phone
-
-	return emailExists, phoneExists, nil
+	return true, nil
 }
 
-func (r *UserRepo) CreateSeeker(input dto.SeekerSignUpInput, hashedPassword string) error {
-	// Check for duplicate email or phone
-	emailTaken, phoneTaken, err := r.CheckDuplicateEmailOrPhone(input.Email, input.Number)
+func (r *UserRepo) CheckDuplicatePhone(phone string) (bool, error) {
+	var user models.AuthUser
+	err := r.DB.Collection("auth_users").FindOne(context.TODO(), bson.M{"phone": phone}).Decode(&user)
 	if err != nil {
-		return fmt.Errorf("error checking for duplicates: %w", err)
+		if err == mongo.ErrNoDocuments {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+
+func (r *UserRepo) CreateSeeker(input dto.SeekerSignUpInput, hashedPassword string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	emailTaken, err := r.CheckDuplicateEmail(input.Email)
+	if err != nil {
+		return fmt.Errorf("failed checking email: %w", err)
 	}
 	if emailTaken {
-		return fmt.Errorf("email is already taken")
+		return fmt.Errorf("email already in use")
+	}
+
+	phoneTaken, err := r.CheckDuplicatePhone(input.Number)
+	if err != nil {
+		return fmt.Errorf("failed checking phone: %w", err)
 	}
 	if phoneTaken {
-		return fmt.Errorf("phone number is already taken")
+		return fmt.Errorf("phone number already in use")
 	}
 
+	// Proceed with creation...
 	authUserID := uuid.New().String()
 	token := uuid.New().String()
-
-	// Create AuthUser
 	now := time.Now()
 
 	authUser := models.AuthUser{
@@ -88,14 +95,10 @@ func (r *UserRepo) CreateSeeker(input dto.SeekerSignUpInput, hashedPassword stri
 		EmailVerified:     	false,
 		VerificationToken: 	token,
 		IsActive:         	true,
-		CreatedBy:         	authUserID,
 		UpdatedBy:         	authUserID,
 		CreatedAt:			&now,
 		UpdatedAt:         	&now,
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
 	// Insert AuthUser
 	_, err = r.DB.Collection("auth_users").InsertOne(ctx, authUser)
@@ -207,27 +210,27 @@ func (r *UserRepo) CreateSeeker(input dto.SeekerSignUpInput, hashedPassword stri
 
 	return nil
 }
-
 func (r *UserRepo) AuthenticateUser(ctx context.Context, email, password string) (*models.AuthUser, error) {
 	var user models.AuthUser
 
 	err := r.DB.Collection("auth_users").FindOne(ctx, bson.M{"email": email}).Decode(&user)
 	if err == mongo.ErrNoDocuments {
-		return nil, errors.New("user not found")
+		return nil, fmt.Errorf("user_not_found")
 	} else if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("db_error: %v", err)
 	}
 
 	if !user.EmailVerified {
-		return nil, errors.New("email not verified")
+		return nil, fmt.Errorf("email_not_verified")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-		return nil, errors.New("incorrect password")
+		return nil, fmt.Errorf("invalid_password")
 	}
 
 	return &user, nil
 }
+
 
 func (r *UserRepo) FindUserByEmail(ctx context.Context, email string) (*models.AuthUser, error) {
 	var user models.AuthUser
