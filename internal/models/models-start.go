@@ -1,9 +1,7 @@
 package models
 
 import (
-
 	"RAAS/core/config"
-
 	"context"
 	"log"
 
@@ -12,61 +10,87 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// Global MongoDB instance
 var MongoDB *mongo.Database
+
+// Collection name constants
+const (
+	CollectionAuthUsers            = "auth_users"
+	CollectionSeekers              = "seekers"
+	CollectionAdmins               = "admins"
+	CollectionSavedJobs            = "saved_jobs"
+	CollectionUserEntryTimelines   = "user_entry_timelines"
+	CollectionSelectedJobApps      = "selected_job_applications"
+	CollectionCoverLetters         = "cover_letters"
+	CollectionCV                   = "cv"
+	CollectionMatchScores          = "match_scores"
+	CollectionJobs                 = "jobs"
+	CollectionCounter			   = "counters"
+)
+
+// InitDB connects to MongoDB, initializes indexes, and optionally creates collections
 func InitDB(cfg *config.Config) (*mongo.Client, *mongo.Database) {
-	// Create MongoDB client options using the URI from the config
 	clientOptions := options.Client().ApplyURI(cfg.Cloud.MongoDBUri)
 
-	// Connect to MongoDB
 	client, err := mongo.Connect(context.TODO(), clientOptions)
 	if err != nil {
 		log.Fatalf("❌ Error connecting to MongoDB: %v", err)
 	}
 
-	// Ping MongoDB to check the connection
 	err = client.Ping(context.TODO(), nil)
 	if err != nil {
 		log.Fatalf("❌ Error pinging MongoDB: %v", err)
 	}
 
-	// Set the global MongoDB variable to the database from the config
 	MongoDB = client.Database(cfg.Cloud.MongoDBName)
 	log.Println("✅ MongoDB connection established")
-
-	// Print all collections (optional)
-	// air
-
-
-	// Optionally reset collections (this function could be defined elsewhere if needed)
 	// resetCollections()
-
-	// Call the CreateAllIndexes function to create the necessary indexes for all models
+	// Explicit collection creation (optional)
+	// CreateCollectionsExplicitly([]string{
+	// 	CollectionAuthUsers,
+	// 	CollectionSeekers,
+	// 	CollectionAdmins,
+	// 	CollectionSavedJobs,
+	// 	CollectionUserEntryTimelines,
+	// 	CollectionSelectedJobApps,
+	// 	CollectionCoverLetters,
+	// 	CollectionCV,
+	// 	CollectionMatchScores,
+	// 	CollectionJobs,
+	// })
+	
+	// Create indexes
 	CreateAllIndexes()
 
-	// Now, select the "jobs" collection
-	// collection := MongoDB.Collection("jobs") // Replace with your actual collection name
-	// SeedJobs(collection)
-
-	// Return the client and MongoDB database instances
 	return client, MongoDB
 }
 
+// Explicitly create collections if not present
+func CreateCollectionsExplicitly(collectionNames []string) {
+	for _, col := range collectionNames {
+		err := MongoDB.CreateCollection(context.TODO(), col)
+		if err != nil && !mongo.IsDuplicateKeyError(err) {
+			log.Printf("⚠️ Failed to explicitly create collection %s: %v", col, err)
+		} else {
+			log.Printf("📁 Collection %s ensured", col)
+		}
+	}
+}
 
-// Reset collections if necessary
+// Optional: Reset/Drop collections (dev/test use only)
 func resetCollections() {
 	collections := []string{
-		"admins",
-		"auth_users",
-		"seekers", 
-		"match_scores",
-		"user_entry_timelines",
-		"selected_job_applications",
-		"cover_letters", 
-		"cv", 
-		"cvs",
-		"saved_jobs", 
-		// "jobs",
-		
+		CollectionAuthUsers,
+		CollectionSeekers,
+		CollectionAdmins,
+		CollectionSavedJobs,
+		CollectionUserEntryTimelines,
+		CollectionSelectedJobApps,
+		CollectionCoverLetters,
+		CollectionCV,
+		CollectionMatchScores,
+		CollectionJobs,
+		CollectionCounter,
 	}
 
 	for _, col := range collections {
@@ -92,69 +116,33 @@ func PrintAllCollections() {
 	}
 }
 
-
-
-
-
-
+// Index creation task
 type IndexCreationTask struct {
-	CollectionName     string
-	CreateIndexesFunc  func(collection *mongo.Collection) error
+	CollectionName    string
+	CreateIndexesFunc func(collection *mongo.Collection) error
 }
 
+// Register all index tasks
 func CreateAllIndexes() {
-	// Define the index creation tasks for all collections
-	indexTasks := []IndexCreationTask{
-		{
-			CollectionName:    "auth_users",
-			CreateIndexesFunc: CreateAuthUserIndexes,
-		},
-		{
-			CollectionName:    "seekers",
-			CreateIndexesFunc: CreateSeekerIndexes,
-		},
-		{
-			CollectionName:    "admins",
-			CreateIndexesFunc: CreateAdminIndexes,
-		},
-		{
-			CollectionName: "saved_jobs",
-			CreateIndexesFunc: CreateSavedJobApplicationIndexes,
-		},
-		{
-			CollectionName:    "user_entry_timelines",
-			CreateIndexesFunc: CreateUserEntryTimelineIndexes,
-		},
-		{
-			CollectionName:    "selected_job_applications",
-			CreateIndexesFunc: CreateSelectedJobApplicationIndexes,
-		},
-		
-		{
-			CollectionName:    "cover_letters",
-			CreateIndexesFunc: CreateCoverLetterIndexes, // Add CoverLetter index creation
-		},
-		{
-			CollectionName:    "cv",
-			CreateIndexesFunc: CreateCVIndexes, // Add CV index creation
-		},
-		{
-			CollectionName:    "match_scores", // Add MatchScore index creation
-			CreateIndexesFunc: CreateMatchScoreIndexes, // Add MatchScore compound index for authUserId and jobId
-		},
-		{
-			CollectionName:    "jobs", // Add Job index creation
-			CreateIndexesFunc: CreateJobIndexes, // Add Job index creation (hash for selected count and unique for jobId/jobLink)
-		},
+	tasks := []IndexCreationTask{
+		{CollectionAuthUsers, CreateAuthUserIndexes},
+		{CollectionSeekers, CreateSeekerIndexes},
+		{CollectionAdmins, CreateAdminIndexes},
+		{CollectionSavedJobs, CreateSavedJobApplicationIndexes},
+		{CollectionUserEntryTimelines, CreateUserEntryTimelineIndexes},
+		{CollectionSelectedJobApps, CreateSelectedJobApplicationIndexes},
+		{CollectionCoverLetters, CreateCoverLetterIndexes},
+		{CollectionCV, CreateCVIndexes},
+		{CollectionMatchScores, CreateMatchScoreIndexes},
+		{CollectionJobs, CreateJobIndexes},
 	}
-	
-	// Iterate over each task and execute the index creation
-	for _, task := range indexTasks {
+
+	for _, task := range tasks {
 		collection := MongoDB.Collection(task.CollectionName)
 		if err := task.CreateIndexesFunc(collection); err != nil {
-			log.Fatalf("Failed to create indexes for %s: %v", task.CollectionName, err)
+			log.Fatalf("❌ Failed to create indexes for %s: %v", task.CollectionName, err)
 		} else {
-			// log.Printf("Indexes for %s created successfully!", task.CollectionName)
+			log.Printf("✅ Indexes for %s created", task.CollectionName)
 		}
 	}
 }

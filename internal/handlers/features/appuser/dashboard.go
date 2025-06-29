@@ -37,7 +37,7 @@ func (h *SeekerProfileHandler) GetDashboard(c *gin.Context) {
 
 	// ✅ Check UserEntryTimeline for completion
 	var timeline models.UserEntryTimeline
-	err := db.Collection("entry_progress_timelines").FindOne(c, bson.M{
+	err := db.Collection("user_entry_timelines").FindOne(c, bson.M{
 		"auth_user_id": userID,
 	}).Decode(&timeline)
 
@@ -105,17 +105,25 @@ func (h *SeekerProfileHandler) buildInfo(s models.Seeker) dto.InfoBlocks{
     }
 }
 
-// Build the Profile fields
 func (h *SeekerProfileHandler) buildFields(s models.Seeker) dto.Profile {
+    // Calculate profile completion and missing fields
+    completion, _ := repository.CalculateProfileCompletion(s)
+
+    // // Log missing fields
+    // if len(missing) > 0 {
+    //     log.Printf("⚠️ Missing profile fields for user %s: %v", s.AuthUserID, missing)
+    // }
+
     return dto.Profile{
         FirstName:         repository.DereferenceString(repository.GetOptionalField(s.PersonalInfo, "first_name")),
         SecondName:        repository.GetOptionalField(s.PersonalInfo, "second_name"),
-        ProfileCompletion: repository.CalculateProfileCompletion(s),
+        ProfileCompletion: completion,
         PrimaryJobTitle:   s.PrimaryTitle,
         SecondaryJobTitle: ptrVal(s.SecondaryTitle),
         TertiaryJobTitle:  ptrVal(s.TertiaryTitle),
     }
 }
+
 
 // Build the Checklist
 func (h *SeekerProfileHandler) buildChecklist(s models.Seeker) dto.Checklist {

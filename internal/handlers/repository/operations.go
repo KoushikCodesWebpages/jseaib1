@@ -9,11 +9,11 @@ import (
 	// "time"
 	"context"
 	"errors"
+
+	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"github.com/google/uuid"
-
 )
 
 
@@ -86,52 +86,61 @@ func GetNextSequence(db *mongo.Database, name string) (uint, error) {
 	return result.SequenceValue, err
 }
 
-
-
-// Helper function to calculate profile completion
-func CalculateProfileCompletion(seeker models.Seeker) int {
+// CalculateProfileCompletion computes profile completion percentage and returns missing fields
+func CalculateProfileCompletion(seeker models.Seeker) (int, []string) {
 	completion := 0
+	var missing []string
 
-	// Personal Info
+	// Personal Info: Only first_name
 	if seeker.PersonalInfo != nil {
-		if seeker.PersonalInfo["first_name"] != nil {
+		if val, ok := seeker.PersonalInfo["first_name"]; ok && val != "" {
 			completion += 10
+		} else {
+			missing = append(missing, "first_name")
 		}
-		if seeker.PersonalInfo["second_name"] != nil {
-			completion += 10
-		}
+	} else {
+		missing = append(missing, "first_name")
 	}
 
-	// Skills
+	// Key Skills
 	if len(seeker.KeySkills) > 0 {
-	completion += 20
+		completion += 20
+	} else {
+		missing = append(missing, "key_skills")
 	}
 
-	// Work Experience
+	// Work Experiences
 	if len(seeker.WorkExperiences) > 0 {
 		completion += 20
+	} else {
+		missing = append(missing, "work_experiences")
 	}
 
 	// Certificates
 	if len(seeker.Certificates) > 0 {
 		completion += 20
+	} else {
+		missing = append(missing, "certificates")
 	}
 
 	// Preferred Job Title
 	if seeker.PrimaryTitle != "" {
 		completion += 20
+	} else {
+		missing = append(missing, "primary_title")
 	}
 
 	// Subscription Tier
 	if seeker.SubscriptionTier != "" {
 		completion += 10
+	} else {
+		missing = append(missing, "subscription_tier")
 	}
 
-	// Ensure completion is capped at 100
+	// Cap at 100
 	if completion > 100 {
 		completion = 100
 	}
 
-	return completion
+	return completion, missing
 }
-
