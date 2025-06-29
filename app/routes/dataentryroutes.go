@@ -49,8 +49,8 @@ func SetupDataEntryRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Confi
 	{
 		workExperienceRoutes.POST("", workExperienceHandler.CreateWorkExperience)
 		workExperienceRoutes.GET("", workExperienceHandler.GetWorkExperience)
-		workExperienceRoutes.PUT("/:id", workExperienceHandler.UpdateWorkExperience)
-		workExperienceRoutes.DELETE("/:id", workExperienceHandler.DeleteWorkExperience)
+		// workExperienceRoutes.PUT("/:id", workExperienceHandler.UpdateWorkExperience)
+		// workExperienceRoutes.DELETE("/:id", workExperienceHandler.DeleteWorkExperience)
 
 	}
 
