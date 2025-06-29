@@ -44,8 +44,9 @@ func InitDB(cfg *config.Config) (*mongo.Client, *mongo.Database) {
 
 	MongoDB = client.Database(cfg.Cloud.MongoDBName)
 	log.Println("✅ MongoDB connection established")
+
 	// resetCollections()
-	// Explicit collection creation (optional)
+	// // Explicit collection creation (optional)
 	// CreateCollectionsExplicitly([]string{
 	// 	CollectionAuthUsers,
 	// 	CollectionSeekers,
@@ -59,8 +60,8 @@ func InitDB(cfg *config.Config) (*mongo.Client, *mongo.Database) {
 	// 	CollectionJobs,
 	// })
 	
-	// Create indexes
-	CreateAllIndexes()
+	// // Create indexes
+	// CreateAllIndexes()
 
 	return client, MongoDB
 }

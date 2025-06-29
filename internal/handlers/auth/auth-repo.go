@@ -106,27 +106,39 @@ func (r *UserRepo) CreateSeeker(input dto.SeekerSignUpInput, hashedPassword stri
 		return fmt.Errorf("failed to create auth user: %w", err)
 	}
 
-	// Create Seeker
-	seeker := models.Seeker{
-		AuthUserID:                  	authUserID,
-		SubscriptionTier:            	"free",
-		DailySelectableJobsCount:    	10,
-		DailyGeneratableCV:          	100,
-		DailyGeneratableCoverletter: 	100,
-		TotalApplications:           	0,
+		seeker := models.Seeker{
+		AuthUserID:                  authUserID,
+		PhotoUrl:                    nil, // or set default if needed
 
-		PersonalInfo:                	bson.M{},
-		WorkExperiences:             	[]bson.M{},
-		Academics:                  	[]bson.M{},
-		PastProjects:         			[]bson.M{},
-		Certificates:               	[]bson.M{},
-		Languages:                 		[]bson.M{},
-		KeySkills: 						[]string{},
-		PrimaryTitle:                	"",
-		SecondaryTitle:              	nil,
-		TertiaryTitle:               	nil,
+		TotalApplications:           0,
+		WeeklyAppliedJobs:           0,
+		TopJobs:                     0,
+
+		SubscriptionTier:            "free",
+		SubscriptionPeriod:          "monthly",
+		SubscriptionIntervalStart:   time.Now(),
+		SubscriptionIntervalEnd:     now.AddDate(0, 1, 0),
+
+		InternalApplications:        5,
+		ExternalApplications:        2,
+		ProficicencyTest:            5,
+
+		PersonalInfo:                bson.M{},
+		WorkExperiences:             []bson.M{},
+		Academics:                   []bson.M{},
+		PastProjects:                []bson.M{},
+		Certificates:                []bson.M{},
+		Languages:                   []bson.M{},
+		KeySkills:                   []string{},
+
+		PrimaryTitle:                "",
+		SecondaryTitle:              nil,
+		TertiaryTitle:               nil,
+
+		CreatedAt:                   now,
+		UpdatedAt:                   now,
 	}
-
+	
 	_, err = r.DB.Collection("seekers").InsertOne(ctx, seeker)
 	if err != nil {
 		return fmt.Errorf("failed to create seeker profile: %w", err)

@@ -24,12 +24,12 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 
 	// === USER ===
 
-	// seekerHandler := appuser.NewSeekerHandler()
-	// r.Group("/b1/seeker", auth).
-	// GET("",seekerHandler.GetSeekerProfile)
+	seekerHandler := appuser.NewSeekerHandler()
+	r.Group("/b1/jobprofile", auth).
+	GET("",seekerHandler.GetSeekerProfile)
 
 	seekerProfileHandler := appuser.NewSeekerProfileHandler()
-	dashBoardRoute := r.Group("/b1/profile", auth)
+	dashBoardRoute := r.Group("/b1/dashboard", auth)
 	dashBoardRoute.GET("", seekerProfileHandler.GetDashboard)
 
 

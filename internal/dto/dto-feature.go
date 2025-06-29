@@ -1,16 +1,28 @@
 package dto
+import (
+    "time"
+)
 
 type InfoBlocks struct {
-    AuthUserID                  string      `json:"auth_user_id"`
-    SubscriptionTier            string      `json:"subscription_tier"`
-    DailySelectableJobsCount    int         `json:"daily_selectable_jobs_count"`
-    DailyGeneratableCV          int         `json:"daily_generatable_cv"`
-    DailyGeneratableCoverletter int         `json:"daily_generatable_coverletter"`
-    TotalApplications           int         `json:"total_applications"`
-    TotalJobsAvailable          int         `json:"total_jobs_available"`
+    AuthUserID                  string              `json:"auth_user_id"`
+
+    TotalApplications           int                 `json:"total_applications"`
+	WeeklyAppliedJobs           int                 `json:"weekly_applications_count"`
+	TopJobs                     int                 `json:"top_jobs_count"`
+
+    SubscriptionTier            string              `json:"subscription_tier"`
+    SubscriptionIntervalStart   time.Time           `json:"subscription_interval_start"`
+    SubscriptionIntervalEnd     time.Time           `json:"subscription_interval_end"`
+    SubscriptionPeriod          string              `json:"subscription_period"`
+
+    InternalApplications        int             `json:"internal_application_count"`
+    ExternalApplications        int              `json:"external_application_count"`
+    ProficicencyTest			int 		        `json:"proficicency_test"`
+
 }
 
 type Profile struct {
+    PhotoUrl            *string
     FirstName           string           `json:"first_name"`
     SecondName          *string          `json:"second_name,omitempty"`
     ProfileCompletion   int              `json:"profile_completion"`

@@ -92,17 +92,23 @@ func (h *SeekerProfileHandler) fetchSeeker(c *gin.Context, db *mongo.Database, u
     return &s
 }
 
-// Build the Info block
-func (h *SeekerProfileHandler) buildInfo(s models.Seeker) dto.InfoBlocks{
-    return dto.InfoBlocks{
-        AuthUserID:                  s.AuthUserID,
-        SubscriptionTier:            s.SubscriptionTier,
-        DailySelectableJobsCount:    s.DailySelectableJobsCount,
-        DailyGeneratableCV:          s.DailyGeneratableCV,
-        DailyGeneratableCoverletter: s.DailyGeneratableCoverletter,
-        TotalApplications:           s.TotalApplications,
-        TotalJobsAvailable:          0,
-    }
+func (h *SeekerProfileHandler) buildInfo(s models.Seeker) dto.InfoBlocks {
+	return dto.InfoBlocks{
+		AuthUserID:            s.AuthUserID,
+
+        TotalApplications:     s.TotalApplications,
+        WeeklyAppliedJobs:     s.WeeklyAppliedJobs,	
+		TopJobs:               s.TopJobs,
+
+		SubscriptionTier:      s.SubscriptionTier,
+        SubscriptionPeriod: s.SubscriptionPeriod,
+		SubscriptionIntervalStart:  s.SubscriptionIntervalStart,
+        SubscriptionIntervalEnd: s.SubscriptionIntervalEnd,
+        
+		ExternalApplications:  s.ExternalApplications,
+		InternalApplications:  s.InternalApplications,
+		ProficicencyTest:      s.ProficicencyTest,
+	}
 }
 
 func (h *SeekerProfileHandler) buildFields(s models.Seeker) dto.Profile {

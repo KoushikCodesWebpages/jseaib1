@@ -56,14 +56,23 @@ func CreateAuthUserIndexes(collection *mongo.Collection) error {
 type Seeker struct {
 	ID                          primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
 	AuthUserID                  string             `json:"auth_user_id" bson:"auth_user_id"`
-	PhotoUrl					string				`json:"photo" bson:"photo"`
-	SubscriptionTier            string             `json:"subscription_tier" bson:"subscription_tier"`
 
-	DailySelectableJobsCount    int                `json:"daily_selectable_jobs_count" bson:"daily_selectable_jobs_count"`
-	DailyGeneratableCV          int                `json:"daily_generatable_cv" bson:"daily_generatable_cv"`
-	DailyGeneratableCoverletter int                `json:"daily_generatable_coverletter" bson:"daily_generatable_coverletter"`
+	PhotoUrl                    *string             `json:"photo,omitempty" bson:"photo,omitempty"`
+
 	TotalApplications           int                `json:"total_applications" bson:"total_applications"`
-	
+	WeeklyAppliedJobs           int                `json:"weekly_applications_count" bson:"weekly_applications_count"`
+	TopJobs                     int                `json:"top_jobs_count" bson:"top_jobs_count"`
+
+	SubscriptionTier          	string    			`json:"subscription_tier" bson:"subscription_tier"`
+	SubscriptionPeriod        	string    			`json:"subscription_period" bson:"subscription_period"` // e.g., "monthly", "quarterly"
+	SubscriptionIntervalStart 	time.Time 			`json:"subscription_interval_start" bson:"subscription_interval_start"`
+	SubscriptionIntervalEnd   	time.Time 			`json:"subscription_interval_end" bson:"subscription_interval_end"`
+
+
+	ExternalApplications         int                `json:"external_application_count" bson:"external_application_count"`
+	InternalApplications         int                `json:"internal_application_count" bson:"internal_application_count"`
+	ProficicencyTest            int                	`json:"proficicency_test" bson:"proficicency_test"`
+
 	PersonalInfo                bson.M             `json:"personal_info" bson:"personal_info"`
 	WorkExperiences             []bson.M           `json:"work_experiences" bson:"work_experiences"`
 	Academics                   []bson.M           `json:"academics" bson:"academics"`
@@ -79,6 +88,7 @@ type Seeker struct {
 	CreatedAt                   time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt                   time.Time          `json:"updated_at" bson:"updated_at"`
 }
+
 
 
 func CreateSeekerIndexes(collection *mongo.Collection) error {
