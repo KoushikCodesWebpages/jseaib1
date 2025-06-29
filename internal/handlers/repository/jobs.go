@@ -5,6 +5,7 @@ import (
 
 	"context"
 	"fmt"
+	"time"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -78,16 +79,21 @@ func FetchAppliedJobIDs(ctx context.Context, collection *mongo.Collection, userI
 }
 
 
-// Construct the job query filter
 func BuildJobFilter(preferredTitles, appliedJobIDs []string, jobLang string) bson.M {
 	var andConditions []bson.M
 
+	// Step 0: Filter jobs within last 14 days
+	twoWeeksAgo := time.Now().AddDate(0, 0, -14).Format("2006-01-02")
+	andConditions = append(andConditions, bson.M{"posted_date": bson.M{"$gte": twoWeeksAgo}})
+
 	// Step 1: Preferred job titles from user
-	var titleConditions []bson.M
-	for _, title := range preferredTitles {
-		titleConditions = append(titleConditions, bson.M{"title": bson.M{"$regex": title, "$options": "i"}})
+	if len(preferredTitles) > 0 {
+		var titleConditions []bson.M
+		for _, title := range preferredTitles {
+			titleConditions = append(titleConditions, bson.M{"title": bson.M{"$regex": title, "$options": "i"}})
+		}
+		andConditions = append(andConditions, bson.M{"$or": titleConditions})
 	}
-	andConditions = append(andConditions, bson.M{"$or": titleConditions})
 
 	// Step 2: Exclude already applied jobs
 	if len(appliedJobIDs) > 0 {
@@ -101,3 +107,4 @@ func BuildJobFilter(preferredTitles, appliedJobIDs []string, jobLang string) bso
 
 	return bson.M{"$and": andConditions}
 }
+

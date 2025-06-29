@@ -27,7 +27,7 @@ func (h *SeekerProfileHandler) GetDashboard(c *gin.Context) {
 
     seeker := h.fetchSeeker(c, db, userID)
     if seeker == nil {
-        c.JSON(http.StatusNotFound, gin.H{"error": "seeker not found"})
+        c.JSON(http.StatusNotFound, gin.H{"issue":"User data is not present in the system","error": "seeker not found"})
         return
     }
 
@@ -45,6 +45,7 @@ resp := dto.DashboardResponse{
         "checklist":  resp.Checklist,
         "new_jobs":   resp.MiniNewJobsResponse,
         "test_summary": resp.MiniTestSummaryResponse,
+
     })
 }
 

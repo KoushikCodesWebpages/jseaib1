@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -43,18 +44,24 @@ func JobRetrievalHandler(c *gin.Context) {
 		appliedJobIDs = []string{}
 	}
 
-	// Read optional job_language filter
+	// Optional job_language query param
 	jobLanguage := c.Query("job_language")
 
-	// Build filter
+	// Build job filter (includes last 2 weeks filtering)
 	filter := repository.BuildJobFilter(preferredTitles, appliedJobIDs, jobLanguage)
 
-	// Pagination
+	// Pagination values
 	pagination := c.MustGet("pagination").(gin.H)
 	offset := pagination["offset"].(int)
 	limit := pagination["limit"].(int)
 
-	cursor, err := db.Collection("jobs").Find(c, filter, options.Find().SetSkip(int64(offset)).SetLimit(int64(limit)))
+	// Set Mongo FindOptions with sorting by posted_date (newest first)
+	findOpts := options.Find().
+		SetSort(bson.D{{Key: "posted_date", Value: -1}}).
+		SetSkip(int64(offset)).
+		SetLimit(int64(limit))
+
+	cursor, err := db.Collection("jobs").Find(c, filter, findOpts)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching job data"})
 		return
@@ -94,24 +101,28 @@ func JobRetrievalHandler(c *gin.Context) {
 		index++
 	}
 
-	// This must be after loop
+	// Count total jobs matching filter
 	totalCount, err := db.Collection("jobs").CountDocuments(c, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error counting job data"})
 		return
 	}
 
-	// Pagination response
+	// Build pagination links
 	nextPage := ""
 	if int64(offset+limit) < totalCount {
 		nextPage = fmt.Sprintf("/api/jobs?offset=%d&limit=%d", offset+limit, limit)
 	}
 	prevPage := ""
 	if offset > 0 {
-		prevPage = fmt.Sprintf("/api/jobs?offset=%d&limit=%d", offset-limit, limit)
+		prevOffset := offset - limit
+		if prevOffset < 0 {
+			prevOffset = 0
+		}
+		prevPage = fmt.Sprintf("/api/jobs?offset=%d&limit=%d", prevOffset, limit)
 	}
 
-	// ✅ Final response outside the loop
+	// Final JSON response
 	c.JSON(http.StatusOK, gin.H{
 		"pagination": gin.H{
 			"total":    totalCount,
