@@ -22,130 +22,124 @@ func NewPastProjectHandler() *PastProjectHandler {
 	return &PastProjectHandler{}
 }
 
-// CreatePastProject handles the creation or update of a single past project entry
+// CreatePastProject handles creation or update of a single past project entry
 func (h *PastProjectHandler) CreatePastProject(c *gin.Context) {
-	userID := c.MustGet("userID").(string)
-	db := c.MustGet("db").(*mongo.Database)
-	seekersCollection := db.Collection("seekers")
-	entryTimelineCollection := db.Collection("user_entry_timelines")
-
-	var input dto.PastProjectRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
-		log.Printf("Error binding input: %v", err)
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	var seeker models.Seeker
-	if err := seekersCollection.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
-		if err == mongo.ErrNoDocuments {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Seeker not found"})
-			log.Printf("Seeker not found for auth_user_id: %s", userID)
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving seeker"})
-			log.Printf("Error retrieving seeker for auth_user_id: %s, Error: %v", userID, err)
-		}
-		return
-	}
-
-	// Create a PastProjectRequest from the input
-	project := dto.PastProjectRequest{
-		ProjectName:        input.ProjectName,
-		Institution:        input.Institution,
-		StartDate:          input.StartDate,
-		EndDate:            input.EndDate,
-		ProjectDescription: input.ProjectDescription,
-	}
-
-	// Use AppendToPastProjects to add the new project (you need to define this in repository)
-	if err := repository.AppendToPastProjects(&seeker, project); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process past project"})
-		log.Printf("Failed to process past project for auth_user_id: %s, Error: %v", userID, err)
-		return
-	}
-
-	// Update seeker document with the new past projects
-	update := bson.M{
-		"$set": bson.M{
-			"past_projects": seeker.PastProjects, // Save updated past projects
-		},
-	}
-
-	updateResult, err := seekersCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, update)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save past project"})
-		log.Printf("Failed to update past project for auth_user_id: %s, Error: %v", userID, err)
-		return
-	}
-
-	if updateResult.MatchedCount == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "No matching seeker found to update"})
-		log.Printf("No matching seeker found for auth_user_id: %s", userID)
-		return
-	}
-
-	// Update user entry timeline to mark past projects completed
-	timelineUpdate := bson.M{
-		"$set": bson.M{
-			"past_projects_completed": true,
-		},
-	}
-
-	if _, err := entryTimelineCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, timelineUpdate); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user entry timeline"})
-		log.Printf("Failed to update user entry timeline for auth_user_id: %s, Error: %v", userID, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Past project added successfully",
-	})
-}
-
-// GetPastProjects handles the retrieval of a user's past project records
-func (h *PastProjectHandler) GetPastProjects(c *gin.Context) {
-    // Extract user ID from context
     userID := c.MustGet("userID").(string)
     db := c.MustGet("db").(*mongo.Database)
     seekersCollection := db.Collection("seekers")
+    timelineCollection := db.Collection("user_entry_timelines")
 
-    // Set timeout context
+    var input dto.PastProjectRequest
+    if err := c.ShouldBindJSON(&input); err != nil {
+        log.Printf("Bind error [CreatePastProject] user=%s: %v", userID, err)
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error": err.Error(),
+            "issue": "Some required fields are missing or invalid.",
+        })
+        return
+    }
+
     ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
     defer cancel()
 
-    // Find seeker by auth_user_id
     var seeker models.Seeker
     if err := seekersCollection.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
+        log.Printf("DB fetch error [CreatePastProject] user=%s: %v", userID, err)
         if err == mongo.ErrNoDocuments {
-            c.JSON(http.StatusNotFound, gin.H{"error": "Seeker not found"})
-            log.Printf("Seeker not found for auth_user_id: %s", userID)
+            c.JSON(http.StatusNotFound, gin.H{
+                "error": err.Error(),
+                "issue": "No account found. It might have been removed or reset.",
+            })
         } else {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving seeker"})
-            log.Printf("Error retrieving seeker for auth_user_id: %s, Error: %v", userID, err)
+            c.JSON(http.StatusInternalServerError, gin.H{
+                "error": err.Error(),
+                "issue": "Could not retrieve your profile. Please try again.",
+            })
         }
         return
     }
 
-    // Check if there are any past projects
+    if err := repository.AppendToPastProjects(&seeker, input); err != nil {
+        log.Printf("Processing error [CreatePastProject] user=%s: %v", userID, err)
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": err.Error(),
+            "issue": "Could not save your project details. Try again shortly.",
+        })
+        return
+    }
+
+    updateResult, err := seekersCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, bson.M{"$set": bson.M{"past_projects": seeker.PastProjects}})
+    if err != nil {
+        log.Printf("DB update error [CreatePastProject] user=%s: %v", userID, err)
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": err.Error(),
+            "issue": "Failed to update your project records. Please retry.",
+        })
+        return
+    }
+    if updateResult.MatchedCount == 0 {
+        log.Printf("No document matched [CreatePastProject] user=%s", userID)
+        c.JSON(http.StatusNotFound, gin.H{
+            "error": "no seeker updated for " + userID,
+            "issue": "Your account couldn't be updated. Please refresh and try again.",
+        })
+        return
+    }
+
+    if _, err := timelineCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, bson.M{"$set": bson.M{"past_projects_completed": true}}); err != nil {
+        log.Printf("Timeline update error [CreatePastProject] user=%s: %v", userID, err)
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": err.Error(),
+            "issue": "Project saved, but progress tracking failed.",
+        })
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{"issue": "Project added successfully"})
+}
+
+// GetPastProjects handles retrieval of a user's past project records
+func (h *PastProjectHandler) GetPastProjects(c *gin.Context) {
+    userID := c.MustGet("userID").(string)
+    db := c.MustGet("db").(*mongo.Database)
+    seekersCollection := db.Collection("seekers")
+
+    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    defer cancel()
+
+    var seeker models.Seeker
+    if err := seekersCollection.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
+        log.Printf("DB fetch error [GetPastProjects] user=%s: %v", userID, err)
+        if err == mongo.ErrNoDocuments {
+            c.JSON(http.StatusNotFound, gin.H{
+                "error": err.Error(),
+                "issue": "Account not found. Please refresh or contact support.",
+            })
+        } else {
+            c.JSON(http.StatusInternalServerError, gin.H{
+                "error": err.Error(),
+                "issue": "Failed to retrieve your profile. Please try again.",
+            })
+        }
+        return
+    }
+
     if len(seeker.PastProjects) == 0 {
         c.JSON(http.StatusNoContent, gin.H{"message": "No past projects found"})
         return
     }
 
-    // Use repository layer to format and return the data
     projects, err := repository.GetPastProjects(&seeker)
     if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error processing past project records"})
-        log.Printf("Error processing past projects for auth_user_id: %s, Error: %v", userID, err)
+        log.Printf("Processing error [GetPastProjects] user=%s: %v", userID, err)
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": err.Error(),
+            "issue": "We couldn't load your project history. Please try again.",
+        })
         return
     }
 
-    c.JSON(http.StatusOK, gin.H{
-        "past_projects": projects,
-    })
+    c.JSON(http.StatusOK, gin.H{"past_projects": projects})
 }
 
 func (h *PastProjectHandler) UpdatePastProject(c *gin.Context) {

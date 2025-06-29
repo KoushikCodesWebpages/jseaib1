@@ -109,7 +109,7 @@ func (h *PersonalInfoHandler) CreatePersonalInfo(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": message,
+		"issue": message,
 	})
 }
 

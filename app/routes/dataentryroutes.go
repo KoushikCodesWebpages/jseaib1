@@ -49,8 +49,7 @@ func SetupDataEntryRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Confi
 	{
 		workExperienceRoutes.POST("", workExperienceHandler.CreateWorkExperience)
 		workExperienceRoutes.GET("", workExperienceHandler.GetWorkExperience)
-		// workExperienceRoutes.PUT("/:id", workExperienceHandler.UpdateWorkExperience)
-		// workExperienceRoutes.DELETE("/:id", workExperienceHandler.DeleteWorkExperience)
+
 
 	}
 
@@ -61,8 +60,6 @@ func SetupDataEntryRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Confi
 	{
 		academicsRoutes.POST("", academicsHandler.CreateAcademics)
 		academicsRoutes.GET("", academicsHandler.GetAcademics)
-		academicsRoutes.PUT("/:id", academicsHandler.UpdateAcademics) // <-- PUT
-		academicsRoutes.DELETE("/:id",academicsHandler.DeleteAcademics) // <-- DELETE
 	}
 
 	pastProjectHandler:= preference.NewPastProjectHandler()
@@ -71,8 +68,6 @@ func SetupDataEntryRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Confi
 	{
 		pastProjectRoutes.POST("",pastProjectHandler.CreatePastProject)
 		pastProjectRoutes.GET("",pastProjectHandler.GetPastProjects)
-		pastProjectRoutes.PUT("/:id",pastProjectHandler.UpdatePastProject)
-		pastProjectRoutes.DELETE("/:id",pastProjectHandler.DeletePastProject)
 
 	}
 
@@ -84,8 +79,6 @@ func SetupDataEntryRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Confi
 	{
 		certificateRoutes.POST("", certificateHandler.CreateCertificate)
 		certificateRoutes.GET("", certificateHandler.GetCertificates)
-		certificateRoutes.PUT(":id", certificateHandler.UpdateCertificate)
-		certificateRoutes.DELETE(":id", certificateHandler.DeleteCertificate)
 	}
 
 	// LANGUAGES routes	
@@ -95,8 +88,6 @@ func SetupDataEntryRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Confi
 	{
 		languageRoutes.POST("", languageHandler.CreateLanguage)
 		languageRoutes.GET("", languageHandler.GetLanguages)
-		languageRoutes.PUT("/:id", languageHandler.UpdateLanguage)
-		languageRoutes.DELETE("/:id", languageHandler.DeleteLanguage)
 	}
 
 	// JOB TITLES routes

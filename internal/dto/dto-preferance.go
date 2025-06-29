@@ -151,23 +151,22 @@ type LanguageResponse struct {
 // =======================
 
 type CertificateRequest struct {
-	CertificateName string     `json:"certificate_name" binding:"required" bson:"certificate_name"`
-	Platform        *string     `json:"platform,omitempty" bson:"platform,omitempty"`
-	StartDate       time.Time  `json:"start_date" binding:"required" bson:"start_date"`
-	EndDate         *time.Time `json:"end_date,omitempty" bson:"end_date,omitempty"`
+    CertificateName string     `json:"certificate_name" binding:"required" bson:"certificate_name"`
+    CertificateType string     `json:"certificate_type" binding:"required,oneof=certification completion appreciation participation internship"` // required with restricted values
+    Provider        *string    `json:"provider,omitempty" bson:"provider,omitempty"`            // Issuing organization
+    CompletionDate  time.Time  `json:"completion_date" binding:"required" bson:"completion_date"`
 }
 
 
 type CertificateResponse struct {
-	AuthUserID      string             `json:"auth_user_id" bson:"auth_user_id"`
-	CertificateName string             `json:"certificate_name" bson:"certificate_name"`
-	Platform        string             `json:"platform" bson:"platform"`
-	StartDate       time.Time          `json:"start_date" bson:"start_date"`
-	EndDate         *time.Time         `json:"end_date,omitempty" bson:"end_date,omitempty"`
-	CreatedAt       time.Time          `json:"created_at" bson:"created_at"`
-	UpdatedAt       time.Time          `json:"updated_at" bson:"updated_at"`
+    AuthUserID       string     `json:"auth_user_id" bson:"auth_user_id"`
+    CertificateName  string     `json:"certificate_name" bson:"certificate_name"`
+    CertificateType  string     `json:"certificate_type" bson:"certificate_type"`
+    Provider         *string    `json:"provider,omitempty" bson:"provider,omitempty"`
+    CompletionDate   time.Time  `json:"completion_date" bson:"completion_date"`
+    CreatedAt        time.Time  `json:"created_at" bson:"created_at"`
+    UpdatedAt        time.Time  `json:"updated_at" bson:"updated_at"`
 }
-
 
 
 

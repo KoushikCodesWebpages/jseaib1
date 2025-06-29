@@ -102,12 +102,12 @@ type Language struct {
 // =======================
 
 type Certificate struct {
-	ID             primitive.ObjectID `bson:"_id,omitempty"`
-	AuthUserID     string             `bson:"auth_user_id"`
-	CertificateName string            `bson:"certificate_name"`  // Name of the certificate
-	Platform        *string            `bson:"platform"`          // Platform or issuer (e.g., Coursera, Udemy)
-	StartDate       time.Time         `bson:"start_date"`        // Required
-	EndDate         *time.Time        `bson:"end_date,omitempty"`// Optional
-	CreatedAt       time.Time         `bson:"created_at"`
-	UpdatedAt       time.Time         `bson:"updated_at"`
+    ID               primitive.ObjectID `bson:"_id,omitempty"`
+    AuthUserID       string             `bson:"auth_user_id"`
+    CertificateName  string             `bson:"certificate_name"`                      // Title of the certificate
+    CertificateType  string             `bson:"certificate_type"`                      // e.g. "certification", "completion", "participation", "appreciation", "internship", etc.
+    Provider         *string            `bson:"provider,omitempty"`                    // Issuing organization (e.g., Coursera, Company XYZ)
+    CompletionDate   time.Time          `bson:"completion_date"`                       // Date certificate was earned
+    CreatedAt        time.Time          `bson:"created_at"`
+    UpdatedAt        time.Time          `bson:"updated_at"`
 }

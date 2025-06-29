@@ -21,18 +21,20 @@ type AcademicsHandler struct{}
 func NewAcademicsHandler() *AcademicsHandler {
 	return &AcademicsHandler{}
 }
-
-// CreateEducation handles the creation or update of a single education entry
+// CreateAcademics creates or updates an academic entry
 func (h *AcademicsHandler) CreateAcademics(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	db := c.MustGet("db").(*mongo.Database)
-	seekersCollection := db.Collection("seekers")
-	entryTimelineCollection := db.Collection("user_entry_timelines")
+	seekers := db.Collection("seekers")
+	timelines := db.Collection("user_entry_timelines")
 
 	var input dto.AcademicsRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
-		log.Printf("Error binding input: %v", err)
+		log.Printf("Bind error [CreateAcademics] user=%s: %v", userID, err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+			"issue": "Some fields are missing or contain invalid values.",
+		})
 		return
 	}
 
@@ -40,114 +42,110 @@ func (h *AcademicsHandler) CreateAcademics(c *gin.Context) {
 	defer cancel()
 
 	var seeker models.Seeker
-	if err := seekersCollection.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
+	if err := seekers.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
 		if err == mongo.ErrNoDocuments {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Seeker not found"})
-			log.Printf("Seeker not found for auth_user_id: %s", userID)
+			log.Printf("Seeker not found [CreateAcademics] user=%s", userID)
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": err.Error(),
+				"issue": "We couldn't find your account. Please contact support.",
+			})
 		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving seeker"})
-			log.Printf("Error retrieving seeker for auth_user_id: %s, Error: %v", userID, err)
+			log.Printf("DB fetch error [CreateAcademics] user=%s: %v", userID, err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+				"issue": "Something went wrong while retrieving your profile. Please try again.",
+			})
 		}
 		return
 	}
 
-	// Create an EducationRequest from the input
-	academics := dto.AcademicsRequest{
-		Degree:       	input.Degree,
-		Institution:  	input.Institution,
-		FieldOfStudy: 	input.FieldOfStudy,
-		City: 			input.City,
-		StartDate:    	input.StartDate,
-		EndDate:      	input.EndDate,
-		Description: 	input.Description,
-	}
-
-	// Use AppendToEducation to add the new education
-	if err := repository.AppendToAcademics(&seeker, academics); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process education"})
-		log.Printf("Failed to process academics for auth_user_id: %s, Error: %v", userID, err)
+	if err := repository.AppendToAcademics(&seeker, input); err != nil {
+		log.Printf("Processing error [CreateAcademics] user=%s: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"issue": "Could not save your educational record. Try again shortly.",
+		})
 		return
 	}
 
-	// Update seeker document with the new education
-	update := bson.M{
-		"$set": bson.M{
-			"academics": seeker.Academics, // Save updated education records
-		},
-	}
-
-	updateResult, err := seekersCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, update)
+	updateResult, err := seekers.UpdateOne(ctx,
+		bson.M{"auth_user_id": userID},
+		bson.M{"$set": bson.M{"academics": seeker.Academics}},
+	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save education"})
-		log.Printf("Failed to update academics for auth_user_id: %s, Error: %v", userID, err)
+		log.Printf("DB update error [CreateAcademics] user=%s: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"issue": "Failed to update your education records. Please retry.",
+		})
 		return
 	}
-
 	if updateResult.MatchedCount == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "No matching seeker found to update"})
-		log.Printf("No matching seeker found for auth_user_id: %s", userID)
+		log.Printf("No document matched [CreateAcademics] user=%s", userID)
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "no seeker updated for " + userID,
+			"issue": "Your account couldn't be updated. Please refresh and try again.",
+		})
 		return
 	}
 
-	// Update user entry timeline to mark education completed
-	timelineUpdate := bson.M{
-		"$set": bson.M{
-			"academics_completed": true,
-		},
-	}
-
-	if _, err := entryTimelineCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, timelineUpdate); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user entry timeline"})
-		log.Printf("Failed to update user entry timeline for auth_user_id: %s, Error: %v", userID, err)
+	if _, err := timelines.UpdateOne(ctx, bson.M{"auth_user_id": userID},
+		bson.M{"$set": bson.M{"academics_completed": true}},
+	); err != nil {
+		log.Printf("Timeline update error [CreateAcademics] user=%s: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"issue": "Education saved, but progress tracking failed.",
+		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Academics added successfully",
-	})
+	c.JSON(http.StatusOK, gin.H{"issue": "Academics added successfully"})
 }
 
-// GetEducationHandler handles the retrieval of a user's education records
+// GetAcademics retrieves a user's academics records
 func (h *AcademicsHandler) GetAcademics(c *gin.Context) {
-    // Extract user ID from the context
-    userID := c.MustGet("userID").(string)
-    db := c.MustGet("db").(*mongo.Database)
-    seekersCollection := db.Collection("seekers")
+	userID := c.MustGet("userID").(string)
+	db := c.MustGet("db").(*mongo.Database)
+	seekers := db.Collection("seekers")
 
-    // Set up a context with timeout
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-    // Find the seeker by their auth_user_id
-    var seeker models.Seeker
-    if err := seekersCollection.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
-        if err == mongo.ErrNoDocuments {
-            c.JSON(http.StatusNotFound, gin.H{"error": "Seeker not found"})
-            log.Printf("Seeker not found for auth_user_id: %s", userID)
-        } else {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving seeker"})
-            log.Printf("Error retrieving seeker for auth_user_id: %s, Error: %v", userID, err)
-        }
-        return
-    }
-    // Check if the user has any education records
-    if len(seeker.Academics) == 0 {
-        c.JSON(http.StatusNoContent, gin.H{"message": "No academics records found"})
-        return
-    }
+	var seeker models.Seeker
+	if err := seekers.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
+		if err == mongo.ErrNoDocuments {
+			log.Printf("Seeker not found [GetAcademics] user=%s", userID)
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": err.Error(),
+				"issue": "Account not found. Please refresh or contact support.",
+			})
+		} else {
+			log.Printf("DB fetch error [GetAcademics] user=%s: %v", userID, err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+				"issue": "Failed to retrieve your profile. Please try again.",
+			})
+		}
+		return
+	}
 
-    // Fetch the education data (could be a function similar to GetWorkExperience)
-    academics, err := repository.GetAcademics(&seeker)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error processing academics records"})
-        log.Printf("Error processing academics records for auth_user_id: %s, Error: %v", userID, err)
-        return
-    }
+	if len(seeker.Academics) == 0 {
+		c.JSON(http.StatusNoContent, gin.H{"message": "No academic records found"})
+		return
+	}
 
-    // Return the education data in the response
-    c.JSON(http.StatusOK, gin.H{
-        "academics": academics,
-    })
+	academics, err := repository.GetAcademics(&seeker)
+	if err != nil {
+		log.Printf("Processing error [GetAcademics] user=%s: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"issue": "We couldn't load your education history. Please try again.",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"academics": academics})
 }
 
 func (h *AcademicsHandler) UpdateAcademics(c *gin.Context) {

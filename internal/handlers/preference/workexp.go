@@ -98,7 +98,7 @@ func (h *WorkExperienceHandler) CreateWorkExperience(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Work experience added successfully"})
+	c.JSON(http.StatusOK, gin.H{"issue": "Work experience added successfully"})
 }
 
 // GetWorkExperience retrieves all work experiences for the user

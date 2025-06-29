@@ -295,14 +295,15 @@ func AppendToCertificates(seeker *models.Seeker, newCertificate dto.CertificateR
 	}
 
 	// Create a new certificate entry
-	certificateBson := bson.M{
-		"certificate_name": newCertificate.CertificateName,
-		"platform":         newCertificate.Platform,
-		"start_date":       newCertificate.StartDate,
-		"end_date":         newCertificate.EndDate,
-		"created_at":           time.Now(),
-		"updated_at":           time.Now(),
-	}
+certificateBson := bson.M{
+    "certificate_name":  newCertificate.CertificateName,
+    "certificate_type":  newCertificate.CertificateType,
+    "provider":          newCertificate.Provider,
+    "completion_date":   newCertificate.CompletionDate,
+    "created_at":        time.Now(),
+    "updated_at":        time.Now(),
+}
+
 
 	seeker.Certificates = append(seeker.Certificates, certificateBson)
 	return nil
