@@ -240,7 +240,6 @@ func VerifyEmail(c *gin.Context) {
 		</html>
 	`))
 }
-
 func SeekerLogin(c *gin.Context) {
 	var input dto.LoginInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -294,28 +293,42 @@ func SeekerLogin(c *gin.Context) {
 		return
 	}
 
-	// Generate JWT token here (example)
+	// ✅ Check entry timeline for completion
+	var timeline models.UserEntryTimeline
+	err = db.Collection("entry_progress_timelines").FindOne(ctx, bson.M{
+		"auth_user_id": user.AuthUserID,
+	}).Decode(&timeline)
+
+	progress := false
+	if err == nil && timeline.Completed {
+		progress = true
+	}
+
+	// Generate JWT
 	token, err := security.GenerateJWT(user.AuthUserID, user.Email, "seeker")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"issue": "Login successful but token generation failed.",
-			"error": "jwt_token_error",
+			"issue":   "Login successful but token generation failed.",
+			"error":   "jwt_token_error",
 			"details": err.Error(),
 		})
 		return
 	}
 
+	// ✅ Final response
 	c.JSON(http.StatusOK, gin.H{
 		"issue": "Login successful.",
 		"token": token,
 		"user": gin.H{
-			"email":        user.Email,
-			"authUserId":   user.AuthUserID,
-			"role":         user.Role,
+			"email":         user.Email,
+			"authUserId":    user.AuthUserID,
+			"role":          user.Role,
 			"emailVerified": user.EmailVerified,
+			"Progress":      progress,
 		},
 	})
 }
+
 
 
 func AdminRefreshToken(c *gin.Context) {
