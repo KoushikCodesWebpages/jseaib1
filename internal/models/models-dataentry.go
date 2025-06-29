@@ -11,20 +11,25 @@ import (
 // PERSONAL INFO
 // =======================
 
-type PersonalInfo struct {
+
+type PersonalInfo struct {	
 	ID              primitive.ObjectID 	`bson:"_id,omitempty"`
-	AuthUserID      string            	`bson:"auth_user_id"`
+	AuthUserID      string             	`bson:"auth_user_id"`
 	FirstName       string             	`bson:"first_name"`
 	SecondName      *string            	`bson:"second_name,omitempty"`
 	Country         *string            	`bson:"country,omitempty"`
 	State           *string            	`bson:"state,omitempty"`
 	City            *string            	`bson:"city,omitempty"`
 	LinkedInProfile *string            	`bson:"linkedin_profile,omitempty"`
-	Portfolio       *string            	`bson:"portfolio,omitempty"`
-	Resume          *string            	`bson:"resume,omitempty"`
-	Blog            *string            	`bson:"blog,omitempty"`
-	CreatedAt       time.Time          	`bson:"created_at"`
-	UpdatedAt       time.Time          	`bson:"updated_at"`
+	ExternalLinks   []struct {
+
+			   Type string 				`bson:"type"` // e.g., "portfolio", "resume", "blog"
+		       URL  string 				`bson:"url"`
+
+							} 			`bson:"external_links,omitempty"`
+
+	CreatedAt       time.Time          `bson:"created_at"`
+	UpdatedAt       time.Time          `bson:"updated_at"`
 }
 
 // =======================

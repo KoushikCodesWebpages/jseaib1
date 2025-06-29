@@ -86,9 +86,7 @@ func SetPersonalInfo(seeker *models.Seeker, personalInfo *dto.PersonalInfoReques
 		"state":             personalInfo.State,
 		"city":              personalInfo.City,
 		"linkedin_profile":  personalInfo.LinkedInProfile,
-		"portfolio":         personalInfo.Portfolio,
-		"resume":            personalInfo.Resume,
-		"blog":              personalInfo.Blog,
+		"external_links":	 personalInfo.ExternalLinks,
 		"created_at":        createdAt,
 		"updated_at":        time.Now(),
 	}

@@ -85,7 +85,7 @@ func (h *InternalCoverLetterHandler) PostCoverLetter(c *gin.Context) {
 			"address":            pInfo.City,
 			"contact":            authUser.Phone,
 			"email":              authUser.Email,
-			"portfolio":          pInfo.Portfolio,
+			"portfolio":          /*pInfo.ExternalLinks*/"",
 			"linkedin":           pInfo.LinkedInProfile,
 			"tools":              "VsCode",
 			"skills":             seeker.KeySkills,

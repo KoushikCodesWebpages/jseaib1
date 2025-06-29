@@ -158,7 +158,7 @@ func (h *InternalCVHandler) PostCV(c *gin.Context) {
             "address":            pInfo.City,
             "contact":            authUser.Phone,
             "email":              authUser.Email,
-            "portfolio":          pInfo.Portfolio,
+            "portfolio":          /*pInfo.ExternalLinks*/"",
             "linkedin":           pInfo.LinkedInProfile,
             "tools":              []string{},           // or populate as needed
             "skills":             seeker.KeySkills,

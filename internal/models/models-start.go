@@ -55,16 +55,16 @@ func InitDB(cfg *config.Config) (*mongo.Client, *mongo.Database) {
 // Reset collections if necessary
 func resetCollections() {
 	collections := []string{
-		// "admins",
-		// "auth_users",
-		// "seekers", 
+		"admins",
+		"auth_users",
+		"seekers", 
 		"match_scores",
-		// "user_entry_timelines",
+		"user_entry_timelines",
 		"selected_job_applications",
 		"cover_letters", 
 		"cv", 
 		"cvs",
-		// "saved_jobs", 
+		"saved_jobs", 
 		// "jobs",
 		
 	}

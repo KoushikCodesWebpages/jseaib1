@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"RAAS/app/routes"
-	"RAAS/app/workers"
+	// "RAAS/app/workers"
 	"RAAS/core/config"
 	"RAAS/internal/models"
 )
@@ -32,9 +32,9 @@ func main() {
 	routes.SetupRoutes(r, client, config.Cfg)
 
 	// Launch worker
-	worker := workers.NewMatchScoreWorker(client)
-	ctx, cancel := context.WithCancel(context.Background())
-	go worker.Run(ctx)
+	// worker := workers.NewMatchScoreWorker(client)
+	// ctx, cancel := context.WithCancel(context.Background())
+	// go worker.Run(ctx)
 
 	// Start server
 	port := os.Getenv("PORT")
@@ -57,7 +57,7 @@ func main() {
 	<-shutdownSignal
 
 	log.Println("🛑 Shutting down server and worker...")
-	cancel()
+	// cancel()
 
 	// Cleanup MongoDB
 	if err := client.Disconnect(context.TODO()); err != nil {

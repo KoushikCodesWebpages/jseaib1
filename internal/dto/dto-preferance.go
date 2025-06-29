@@ -14,33 +14,36 @@ import (
 // =======================
 
 type PersonalInfoRequest struct {
-	FirstName       string  `json:"first_name" binding:"required" bson:"first_name"`
+	FirstName       string `json:"first_name" binding:"required" bson:"first_name"`
 	SecondName      *string `json:"second_name,omitempty" bson:"second_name,omitempty"`
 	Country         *string `json:"country,omitempty" bson:"country,omitempty"`
 	State           *string `json:"state,omitempty" bson:"state,omitempty"`
 	City            *string `json:"city,omitempty" bson:"city,omitempty"`
 	LinkedInProfile *string `json:"linkedin_profile,omitempty" bson:"linkedin_profile,omitempty"`
-	Portfolio       *string `json:"portfolio,omitempty" bson:"portfolio,omitempty"`
-	Resume          *string `json:"resume,omitempty" bson:"resume,omitempty"`
-	Blog            *string `json:"blog,omitempty" bson:"blog,omitempty"`
+	ExternalLinks   []struct {
+		Type string `json:"type" bson:"type"` // e.g., "portfolio"
+		URL  string `json:"url" bson:"url"`
+	} `json:"external_links,omitempty" bson:"external_links,omitempty"`
 }
 
 type PersonalInfoResponse struct {
-	AuthUserID      string            	`json:"auth_user_id" bson:"auth_user_id"`
-	FirstName       string             	`json:"first_name" bson:"first_name"`
-	SecondName      *string            	`json:"second_name,omitempty" bson:"second_name,omitempty"`
-	Email       	string     			`json:"email" bson:"email"`
-	Phone           string     			`json:"phone" bson:"phone"`			
-	Country         *string            	`json:"country,omitempty" bson:"country,omitempty"`
-	State           *string            	`json:"state,omitempty" bson:"state,omitempty"`
-	City            *string            	`json:"city,omitempty" bson:"city,omitempty"`
-	LinkedInProfile *string            	`json:"linkedin_profile,omitempty" bson:"linkedin_profile,omitempty"`
-	Portfolio       *string            	`json:"portfolio,omitempty" bson:"portfolio,omitempty"`
-	Resume          *string            	`json:"resume,omitempty" bson:"resume,omitempty"`
-	Blog            *string            	`json:"blog,omitempty" bson:"blog,omitempty"`
-	CreatedAt       time.Time          	`json:"created_at" bson:"created_at"`
-	UpdatedAt       time.Time         	`json:"updated_at" bson:"updated_at"`
+	AuthUserID      string `json:"auth_user_id" bson:"auth_user_id"`
+	FirstName       string `json:"first_name" bson:"first_name"`
+	SecondName      *string `json:"second_name,omitempty" bson:"second_name,omitempty"`
+	Email           string `json:"email" bson:"email"`
+	Phone           string `json:"phone" bson:"phone"`
+	Country         *string `json:"country,omitempty" bson:"country,omitempty"`
+	State           *string `json:"state,omitempty" bson:"state,omitempty"`
+	City            *string `json:"city,omitempty" bson:"city,omitempty"`
+	LinkedInProfile *string `json:"linkedin_profile,omitempty" bson:"linkedin_profile,omitempty"`
+	ExternalLinks   []struct {
+		Type string `json:"type" bson:"type"`
+		URL  string `json:"url" bson:"url"`
+	} `json:"external_links,omitempty" bson:"external_links,omitempty"`
+	CreatedAt time.Time `json:"created_at" bson:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" bson:"updated_at"`
 }
+
 
 // =======================
 // WORK EXPERIENCE
