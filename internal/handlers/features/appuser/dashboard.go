@@ -20,34 +20,62 @@ func NewSeekerProfileHandler() *SeekerProfileHandler {
     return &SeekerProfileHandler{}
 }
 
-// Single dashboard endpoint using all parts individually
+// GetDashboard only returns dashboard if profile setup is complete.
 func (h *SeekerProfileHandler) GetDashboard(c *gin.Context) {
-    db := c.MustGet("db").(*mongo.Database)
-    userID := c.MustGet("userID").(string)
+	db := c.MustGet("db").(*mongo.Database)
+	userID := c.MustGet("userID").(string)
 
-    seeker := h.fetchSeeker(c, db, userID)
-    if seeker == nil {
-        c.JSON(http.StatusNotFound, gin.H{"issue":"User data is not present in the system","error": "seeker not found"})
-        return
-    }
+	// Fetch seeker profile
+	seeker := h.fetchSeeker(c, db, userID)
+	if seeker == nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"issue": "User profile data is missing.",
+			"error": "seeker_not_found",
+		})
+		return
+	}
 
-resp := dto.DashboardResponse{
-        InfoBlocks:              	h.buildInfo(*seeker),
-        Profile:     				h.buildFields(*seeker),
-        Checklist:         			h.buildChecklist(*seeker),
-        MiniNewJobsResponse:     	h.buildMiniJobs(),
-        MiniTestSummaryResponse: 	h.buildMiniTestSummary(),
-    }
+	// ✅ Check UserEntryTimeline for completion
+	var timeline models.UserEntryTimeline
+	err := db.Collection("entry_progress_timelines").FindOne(c, bson.M{
+		"auth_user_id": userID,
+	}).Decode(&timeline)
 
-    c.JSON(http.StatusOK, gin.H{
-        "info_block": resp.InfoBlocks,
-        "profile":    resp.Profile,
-        "checklist":  resp.Checklist,
-        "new_jobs":   resp.MiniNewJobsResponse,
-        "test_summary": resp.MiniTestSummaryResponse,
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"issue":   "Could not retrieve user progress timeline.",
+			"error":   "timeline_fetch_failed",
+			"details": err.Error(),
+		})
+		return
+	}
 
-    })
+	if !timeline.Completed {
+		c.JSON(http.StatusForbidden, gin.H{
+			"issue": "Complete your profile setup to access the dashboard.",
+			"error": "profile_incomplete",
+		})
+		return
+	}
+
+	// ✅ Build dashboard only if profile is complete
+	resp := dto.DashboardResponse{
+		InfoBlocks:              h.buildInfo(*seeker),
+		Profile:                 h.buildFields(*seeker),
+		Checklist:               h.buildChecklist(*seeker),
+		MiniNewJobsResponse:     h.buildMiniJobs(),
+		MiniTestSummaryResponse: h.buildMiniTestSummary(),
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"info_block":   resp.InfoBlocks,
+		"profile":      resp.Profile,
+		"checklist":    resp.Checklist,
+		"new_jobs":     resp.MiniNewJobsResponse,
+		"test_summary": resp.MiniTestSummaryResponse,
+	})
 }
+
 
 // Fetch seeker document
 func (h *SeekerProfileHandler) fetchSeeker(c *gin.Context, db *mongo.Database, userID string) *models.Seeker {
