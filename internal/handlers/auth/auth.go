@@ -324,7 +324,7 @@ func SeekerLogin(c *gin.Context) {
 			"authUserId":    user.AuthUserID,
 			"role":          user.Role,
 			"emailVerified": user.EmailVerified,
-			"Progress":      progress,
+			"progress":      progress,
 		},
 	})
 }
