@@ -3,6 +3,7 @@ package appuser
 import (
 
 	"RAAS/internal/models"
+	"RAAS/internal/handlers/features/jobs"
 
 	"fmt"
 	"net/http"
@@ -78,6 +79,14 @@ func GetNextEntryStep() gin.HandlerFunc {
 				return
 			}
 		}
+		fmt.Println("starting match score calculation")
+		// ✅ Trigger job match score calculation
+			err = jobs.StartJobMatchScoreCalculation(c, db, userID)
+			if err != nil {
+				fmt.Println("Error starting job match score calculation:", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start job match process"})
+				return
+			}
 
 		c.JSON(http.StatusOK, gin.H{
 			"completed": true,
