@@ -160,123 +160,146 @@ func (h *LanguageHandler) GetLanguages(c *gin.Context) {
     c.JSON(http.StatusOK, gin.H{"languages": languages})
 }
 
-// UpdateLanguage handles the update of a language entry (without file upload)
 func (h *LanguageHandler) UpdateLanguage(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	db := c.MustGet("db").(*mongo.Database)
 	seekersCollection := db.Collection("seekers")
 
-	id := c.Param("id")
-	index, err := strconv.Atoi(id)
+	indexStr := c.Param("id")
+	index, err := strconv.Atoi(indexStr)
 	if err != nil || index <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid language index. Must be a positive integer."})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid_index",
+			"issue": "Invalid language index",
+		})
 		return
 	}
 
 	var input dto.LanguageRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
-		log.Printf("Error binding input: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+			"issue": "Invalid input format",
+		})
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var seeker models.Seeker
+	var seeker struct {
+		Languages []bson.M `bson:"languages"`
+	}
 	if err := seekersCollection.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
+		status := http.StatusInternalServerError
+		issue := "Failed to retrieve seeker"
 		if err == mongo.ErrNoDocuments {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Seeker not found"})
-			log.Printf("Seeker not found for auth_user_id: %s", userID)
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving seeker"})
-			log.Printf("Error retrieving seeker for auth_user_id: %s, Error: %v", userID, err)
+			status = http.StatusNotFound
+			issue = "Seeker not found"
 		}
+		c.JSON(status, gin.H{
+			"error": err.Error(),
+			"issue": issue,
+		})
 		return
 	}
 
 	if index > len(seeker.Languages) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Language index out of range"})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "index_out_of_range",
+			"issue": "Language index is out of range",
+		})
 		return
 	}
 
-	updatedLanguage := bson.M{
-		"language":        input.LanguageName,
-		"proficiency":     input.ProficiencyLevel,
+	seeker.Languages[index-1] = bson.M{
+		"language":    input.LanguageName,
+		"proficiency": input.ProficiencyLevel,
+		"updated_at":  time.Now(),
 	}
-
-	seeker.Languages[index-1] = updatedLanguage
 
 	update := bson.M{
 		"$set": bson.M{
 			"languages": seeker.Languages,
 		},
+		"$currentDate": bson.M{"updated_at": true},
 	}
 
-	updateResult, err := seekersCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, update)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save updated language"})
-		log.Printf("Failed to update language for auth_user_id: %s, Error: %v", userID, err)
-		return
-	}
-
-	if updateResult.MatchedCount == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "No matching seeker found to update"})
-		log.Printf("No matching seeker found for auth_user_id: %s", userID)
+	if _, err := seekersCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, update); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"issue": "Failed to update language",
+		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Language updated successfully",
+		"issue": "Language updated successfully",
 	})
 }
 
 
-// DeleteLanguage handles deleting an existing language entry
 func (h *LanguageHandler) DeleteLanguage(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	db := c.MustGet("db").(*mongo.Database)
 	seekersCollection := db.Collection("seekers")
 
-	id := c.Param("id")
-
-	index, err := strconv.Atoi(id)
+	indexStr := c.Param("id")
+	index, err := strconv.Atoi(indexStr)
 	if err != nil || index <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid language index"})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid_index",
+			"issue": "Invalid language index",
+		})
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var seeker models.Seeker
+	var seeker struct {
+		Languages []bson.M `bson:"languages"`
+	}
 	if err := seekersCollection.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
+		status := http.StatusInternalServerError
+		issue := "Failed to retrieve seeker"
 		if err == mongo.ErrNoDocuments {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Seeker not found"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve seeker"})
+			status = http.StatusNotFound
+			issue = "Seeker not found"
 		}
+		c.JSON(status, gin.H{
+			"error": err.Error(),
+			"issue": issue,
+		})
 		return
 	}
 
 	if index > len(seeker.Languages) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Language index out of range"})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "index_out_of_range",
+			"issue": "Language index is out of range",
+		})
 		return
 	}
 
-	// Remove the language entry at index-1
 	seeker.Languages = append(seeker.Languages[:index-1], seeker.Languages[index:]...)
 
 	update := bson.M{
 		"$set": bson.M{
 			"languages": seeker.Languages,
 		},
+		"$currentDate": bson.M{"updated_at": true},
 	}
 
 	if _, err := seekersCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, update); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete language entry"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"issue": "Failed to delete language",
+		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Language deleted successfully"})
+	c.JSON(http.StatusOK, gin.H{
+		"issue": "Language deleted successfully",
+	})
 }

@@ -10,12 +10,12 @@ import (
 	"log"
 	"net/http"
 	"time"
-	// "strconv"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-	// "go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 type WorkExperienceHandler struct{}
 
@@ -146,126 +146,153 @@ func (h *WorkExperienceHandler) GetWorkExperience(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"work_experiences": workExperiences})
 }
 
+func (h *WorkExperienceHandler) UpdateWorkExperience(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+	db := c.MustGet("db").(*mongo.Database)
+	seekersCollection := db.Collection("seekers")
 
-// func (h *WorkExperienceHandler) UpdateWorkExperience(c *gin.Context) {
-//     userID := c.MustGet("userID").(string)
-//     db := c.MustGet("db").(*mongo.Database)
-//     seekersCollection := db.Collection("seekers")
+	indexStr := c.Param("id")
+	index, err := strconv.Atoi(indexStr)
+	if err != nil || index <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid_index",
+			"issue": "Invalid work experience index",
+		})
+		return
+	}
 
-//     id := c.Param("id") // Assume this is the work experience index or unique identifier (better to use index in your case)
+	var input dto.WorkExperienceRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+			"issue": "Invalid input format",
+		})
+		return
+	}
 
-//     var input dto.WorkExperienceRequest
-//     if err := c.ShouldBindJSON(&input); err != nil {
-//         c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
-//         return
-//     }
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-//     ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-//     defer cancel()
+	var seeker struct {
+		WorkExperiences []bson.M `bson:"work_experiences"`
+	}
+	projection := bson.M{"work_experiences": 1}
+	if err := seekersCollection.FindOne(ctx, bson.M{"auth_user_id": userID}, options.FindOne().SetProjection(projection)).Decode(&seeker); err != nil {
+		status := http.StatusInternalServerError
+		msg := "Failed to retrieve seeker"
 
-//     // Fetch seeker with projection to minimize data
-//     var seeker models.Seeker
-//     projection := bson.M{"work_experiences": 1}
-//     if err := seekersCollection.FindOne(ctx, bson.M{"auth_user_id": userID}, options.FindOne().SetProjection(projection)).Decode(&seeker); err != nil {
-//         if err == mongo.ErrNoDocuments {
-//             c.JSON(http.StatusNotFound, gin.H{"error": "Seeker not found"})
-//         } else {
-//             c.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving seeker"})
-//         }
-//         return
-//     }
+		if err == mongo.ErrNoDocuments {
+			status = http.StatusNotFound
+			msg = "Seeker not found"
+		}
 
-//     // Convert id param to int (index based like your example)
-//     index, err := strconv.Atoi(id)
-//     if err != nil || index <= 0 || index > len(seeker.WorkExperiences) {
-//         c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid work experience index"})
-//         return
-//     }
+		c.JSON(status, gin.H{
+			"error": err.Error(),
+			"issue": msg,
+		})
+		return
+	}
 
-//     // Replace entry at index-1
-// 	seeker.WorkExperiences[index-1] = bson.M{
-// 		"auth_user_id":			userID,
-// 		"job_title":            input.JobTitle,
-// 		"company_name":         input.CompanyName,
-// 		"start_date":           input.StartDate,
-// 		"end_date":             input.EndDate,
-// 		"key_responsibilities": input.KeyResponsibilities,
-// 		"location" : 			input.Location,
-// 		"created_at":			input.StartDate,
-// 		"updated_at":           time.Now(),
-// 	}
+	if index > len(seeker.WorkExperiences) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "index_out_of_range",
+			"issue": "Work experience index is out of range",
+		})
+		return
+	}
+
+	seeker.WorkExperiences[index-1] = bson.M{
+		"auth_user_id":         userID,
+		"job_title":            input.JobTitle,
+		"company_name":         input.CompanyName,
+		"start_date":           input.StartDate,
+		"end_date":             input.EndDate,
+		"key_responsibilities": input.KeyResponsibilities,
+		"location":             input.Location,
+		"created_at":           input.StartDate,
+		"updated_at":           time.Now(),
+	}
+
+	update := bson.M{
+		"$set": bson.M{"work_experiences": seeker.WorkExperiences},
+		"$currentDate": bson.M{"updated_at": true},
+	}
+
+	if _, err := seekersCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, update); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"issue": "Failed to update work experience",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"issue": "Work experience updated successfully",
+	})
+}
 
 
-//     // Save updated seeker document
-// 	update := bson.M{
-// 		"$set": bson.M{
-// 			"work_experiences": seeker.WorkExperiences,
-// 		},
-// 	}
+func (h *WorkExperienceHandler) DeleteWorkExperience(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+	db := c.MustGet("db").(*mongo.Database)
+	seekersCollection := db.Collection("seekers")
 
-// 	if _, err := seekersCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, update); err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update work experience"})
-// 		return
-// 	}
+	indexStr := c.Param("id")
+	index, err := strconv.Atoi(indexStr)
+	if err != nil || index <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid_index",
+			"issue": "Invalid work experience index",
+		})
+		return
+	}
 
-//     // Return updated entry as response
-//     c.JSON(http.StatusOK, gin.H{
-//         "message": "Work experience updated successfully",
-//     })
-// }
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-// func (h *WorkExperienceHandler) DeleteWorkExperience(c *gin.Context) {
-// 	userID := c.MustGet("userID").(string)
-// 	db := c.MustGet("db").(*mongo.Database)
-// 	seekersCollection := db.Collection("seekers")
+	var seeker struct {
+		WorkExperiences []bson.M `bson:"work_experiences"`
+	}
+	if err := seekersCollection.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
+		status := http.StatusInternalServerError
+		msg := "Failed to retrieve seeker"
 
-// 	id := c.Param("id")
+		if err == mongo.ErrNoDocuments {
+			status = http.StatusNotFound
+			msg = "Seeker not found"
+		}
 
-// 	// Parse id as integer index
-// 	index, err := strconv.Atoi(id)
-// 	if err != nil || index <= 0 {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid work experience index"})
-// 		return
-// 	}
+		c.JSON(status, gin.H{
+			"error": err.Error(),
+			"issue": msg,
+		})
+		return
+	}
 
-// 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-// 	defer cancel()
+	if index > len(seeker.WorkExperiences) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "index_out_of_range",
+			"issue": "Work experience index is out of range",
+		})
+		return
+	}
 
-// 	var seeker struct {
-// 		WorkExperiences []bson.M `bson:"work_experiences"`
-// 	}
+	seeker.WorkExperiences = append(seeker.WorkExperiences[:index-1], seeker.WorkExperiences[index:]...)
 
-// 	// Fetch current work experiences
-// 	if err := seekersCollection.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
-// 		if err == mongo.ErrNoDocuments {
-// 			c.JSON(http.StatusNotFound, gin.H{"error": "Seeker not found"})
-// 		} else {
-// 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve seeker"})
-// 		}
-// 		return
-// 	}
+	update := bson.M{
+		"$set": bson.M{"work_experiences": seeker.WorkExperiences},
+		"$currentDate": bson.M{"updated_at": true},
+	}
 
-// 	// Check if index is valid
-// 	if index > len(seeker.WorkExperiences) {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Work experience index out of range"})
-// 		return
-// 	}
+	if _, err := seekersCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, update); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"issue": "Failed to delete work experience",
+		})
+		return
+	}
 
-// 	// Remove the item at index-1
-// 	seeker.WorkExperiences = append(seeker.WorkExperiences[:index-1], seeker.WorkExperiences[index:]...)
-
-// 	// Update the seeker document with the new array
-// 	update := bson.M{
-// 		"$set": bson.M{
-// 			"work_experiences": seeker.WorkExperiences,
-// 		},
-// 	}
-
-// 	if _, err := seekersCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, update); err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update work experiences"})
-// 		return
-// 	}
-
-// 	c.JSON(http.StatusOK, gin.H{"message": "Work experience deleted successfully"})
-// }
-
+	c.JSON(http.StatusOK, gin.H{
+		"issue": "Work experience deleted successfully",
+	})
+}

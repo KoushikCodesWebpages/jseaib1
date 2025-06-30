@@ -85,11 +85,14 @@ type Seeker struct {
 	SecondaryTitle              *string            `json:"secondary_title,omitempty" bson:"secondary_title,omitempty"`
 	TertiaryTitle               *string            `json:"tertiary_title,omitempty" bson:"tertiary_title,omitempty"`
 
+	CvFormat					string			   `json:"cv_format" bson:"cv_format"`
+	ClFormat					string			   `json:"cl_format" bson:"cl_format"`
+	
 	CreatedAt                   time.Time          `json:"created_at" bson:"created_at"`
 	UpdatedAt                   time.Time          `json:"updated_at" bson:"updated_at"`
 }
 
-
+//modern_deedy
 
 func CreateSeekerIndexes(collection *mongo.Collection) error {
 	// Create index for AuthUserID to be unique

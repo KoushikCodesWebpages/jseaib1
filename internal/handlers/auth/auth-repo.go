@@ -135,6 +135,8 @@ func (r *UserRepo) CreateSeeker(input dto.SeekerSignUpInput, hashedPassword stri
 		SecondaryTitle:              nil,
 		TertiaryTitle:               nil,
 
+		CvFormat: 					"modern_deedy",
+		ClFormat: 					"cl_format_01",		
 		CreatedAt:                   now,
 		UpdatedAt:                   now,
 	}

@@ -153,108 +153,146 @@ func (h *AcademicsHandler) UpdateAcademics(c *gin.Context) {
 	db := c.MustGet("db").(*mongo.Database)
 	seekersCollection := db.Collection("seekers")
 
-	id := c.Param("id")
-
-	var input dto.AcademicsRequest
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
+	indexStr := c.Param("id")
+	index, err := strconv.Atoi(indexStr)
+	if err != nil || index <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid_index",
+			"issue": "Invalid academics index",
+		})
 		return
 	}
 
-	index, err := strconv.Atoi(id)
-	if err != nil || index <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid education index"})
+	var input dto.AcademicsRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+			"issue": "Invalid input format",
+		})
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var seeker models.Seeker
+	var seeker struct {
+		Academics []bson.M `bson:"academics"`
+	}
 	if err := seekersCollection.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
+		status := http.StatusInternalServerError
+		issue := "Failed to retrieve seeker"
 		if err == mongo.ErrNoDocuments {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Seeker not found"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve seeker"})
+			status = http.StatusNotFound
+			issue = "Seeker not found"
 		}
+		c.JSON(status, gin.H{
+			"error": err.Error(),
+			"issue": issue,
+		})
 		return
 	}
 
 	if index > len(seeker.Academics) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Education index out of range"})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "index_out_of_range",
+			"issue": "Academics index is out of range",
+		})
 		return
 	}
 
-	// Replace the education at index-1
 	seeker.Academics[index-1] = bson.M{
-		"degree":        	input.Degree,
-		"institution":   	input.Institution,
-		"city":				input.City,
-		"field_of_study": 	input.FieldOfStudy,
-		"start_date":    	input.StartDate,
-		"end_date":      	input.EndDate,
-		"achievements":  	input.Description,
-		"updated_at":		time.Now(),
+		"degree":         input.Degree,
+		"institution":    input.Institution,
+		"city":           input.City,
+		"field_of_study": input.FieldOfStudy,
+		"start_date":     input.StartDate,
+		"end_date":       input.EndDate,
+		"achievements":   input.Description,
+		"updated_at":     time.Now(),
 	}
 
 	update := bson.M{
 		"$set": bson.M{
 			"academics": seeker.Academics,
 		},
+		"$currentDate": bson.M{"updated_at": true},
 	}
 
 	if _, err := seekersCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, update); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update academics"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"issue": "Failed to update academics entry",
+		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Academics updated successfully"})
+	c.JSON(http.StatusOK, gin.H{
+		"issue": "Academics entry updated successfully",
+	})
 }
+
 
 func (h *AcademicsHandler) DeleteAcademics(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	db := c.MustGet("db").(*mongo.Database)
 	seekersCollection := db.Collection("seekers")
 
-	id := c.Param("id")
-
-	index, err := strconv.Atoi(id)
+	indexStr := c.Param("id")
+	index, err := strconv.Atoi(indexStr)
 	if err != nil || index <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid academics index"})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid_index",
+			"issue": "Invalid academics index",
+		})
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var seeker models.Seeker
+	var seeker struct {
+		Academics []bson.M `bson:"academics"`
+	}
 	if err := seekersCollection.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
+		status := http.StatusInternalServerError
+		issue := "Failed to retrieve seeker"
 		if err == mongo.ErrNoDocuments {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Seeker not found"})
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve seeker"})
+			status = http.StatusNotFound
+			issue = "Seeker not found"
 		}
+		c.JSON(status, gin.H{
+			"error": err.Error(),
+			"issue": issue,
+		})
 		return
 	}
 
 	if index > len(seeker.Academics) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Academics index out of range"})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "index_out_of_range",
+			"issue": "Academics index is out of range",
+		})
 		return
 	}
 
-	// Remove the education entry at index-1
 	seeker.Academics = append(seeker.Academics[:index-1], seeker.Academics[index:]...)
 
 	update := bson.M{
 		"$set": bson.M{
 			"academics": seeker.Academics,
 		},
+		"$currentDate": bson.M{"updated_at": true},
 	}
 
 	if _, err := seekersCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, update); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete academics entry"})
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"issue": "Failed to delete academics entry",
+		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Academics deleted successfully"})
+	c.JSON(http.StatusOK, gin.H{
+		"issue": "Academics entry deleted successfully",
+	})
 }

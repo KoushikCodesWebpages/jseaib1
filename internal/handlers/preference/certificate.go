@@ -5,7 +5,8 @@ import (
     "log"
     "net/http"
     "time"
-
+    "strconv"
+    
     "RAAS/internal/dto"
     "RAAS/internal/handlers/repository"
     "RAAS/internal/models"
@@ -162,130 +163,140 @@ func (h *CertificateHandler) GetCertificates(c *gin.Context) {
     c.JSON(http.StatusOK, gin.H{"certificates": response})
 }
 
-// func (h *CertificateHandler) UpdateCertificate(c *gin.Context) {
-// 	userID := c.MustGet("userID").(string)
-// 	db := c.MustGet("db").(*mongo.Database)
-// 	seekersCollection := db.Collection("seekers")
+func (h *CertificateHandler) UpdateCertificate(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+	db := c.MustGet("db").(*mongo.Database)
+	seekersCollection := db.Collection("seekers")
 
-// 	id := c.Param("id")
-// 	index, err := strconv.Atoi(id)
-// 	if err != nil || index <= 0 {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid certificate index. Must be a positive integer."})
-// 		return
-// 	}
+	indexStr := c.Param("id")
+	index, err := strconv.Atoi(indexStr)
+	if err != nil || index <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid_index",
+			"issue": "Invalid certificate index",
+		})
+		return
+	}
 
-// 	var input dto.CertificateRequest
-// 	if err := c.ShouldBindJSON(&input); err != nil {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
-// 		log.Printf("Error binding input: %v", err)
-// 		return
-// 	}
+	var input dto.CertificateRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+			"issue": "Invalid input format",
+		})
+		return
+	}
 
-// 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-// 	defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-// 	var seeker models.Seeker
-// 	if err := seekersCollection.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
-// 		if err == mongo.ErrNoDocuments {
-// 			c.JSON(http.StatusNotFound, gin.H{"error": "Seeker not found"})
-// 			log.Printf("Seeker not found for auth_user_id: %s", userID)
-// 		} else {
-// 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving seeker"})
-// 			log.Printf("Error retrieving seeker for auth_user_id: %s, Error: %v", userID, err)
-// 		}
-// 		return
-// 	}
+	var seeker struct {
+		Certificates []bson.M `bson:"certificates"`
+	}
+	if err := seekersCollection.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
+		status := http.StatusInternalServerError
+		issue := "Failed to retrieve seeker"
+		if err == mongo.ErrNoDocuments {
+			status = http.StatusNotFound
+			issue = "Seeker not found"
+		}
+		c.JSON(status, gin.H{
+			"error": err.Error(),
+			"issue": issue,
+		})
+		return
+	}
 
-// 	if index > len(seeker.Certificates) {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Certificate index out of range"})
-// 		return
-// 	}
+	if index > len(seeker.Certificates) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "index_out_of_range",
+			"issue": "Certificate index is out of range",
+		})
+		return
+	}
 
-// 	// Update the certificate fields
+	// Update certificate at index - 1
+	seeker.Certificates[index-1] = bson.M{
+		"certificate_name": input.CertificateName,
+		"certificate_type": input.CertificateType,
+		"provider":         input.Provider,
+		"completion_date":  input.CompletionDate,
+		"updated_at":       time.Now(),
+	}
 
-// 	updatedCertificate := bson.M{
-//     "certificate_name":  newCertificate.CertificateName,
-//     "certificate_type":  newCertificate.CertificateType,
-//     "provider":          newCertificate.Provider,
-//     "completion_date":   newCertificate.CompletionDate,
- 
-// }
+	update := bson.M{
+		"$set": bson.M{"certificates": seeker.Certificates},
+		"$currentDate": bson.M{"updated_at": true},
+	}
 
-// 	// Replace the certificate at the given index (1-based)
-// 	seeker.Certificates[index-1] = updatedCertificate
+	if _, err := seekersCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, update); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"issue": "Failed to update certificate",
+		})
+		return
+	}
 
-// 	update := bson.M{
-// 		"$set": bson.M{
-// 			"certificates": seeker.Certificates,
-// 		},
-// 	}
+	c.JSON(http.StatusOK, gin.H{"issue": "Certificate updated successfully"})
+}
 
-// 	updateResult, err := seekersCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, update)
-// 	if err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update certificate"})
-// 		log.Printf("Failed to update certificate for auth_user_id: %s, Error: %v", userID, err)
-// 		return
-// 	}
+func (h *CertificateHandler) DeleteCertificate(c *gin.Context) {
+	userID := c.MustGet("userID").(string)
+	db := c.MustGet("db").(*mongo.Database)
+	seekersCollection := db.Collection("seekers")
 
-// 	if updateResult.MatchedCount == 0 {
-// 		c.JSON(http.StatusNotFound, gin.H{"error": "No matching seeker found to update"})
-// 		log.Printf("No matching seeker found for auth_user_id: %s", userID)
-// 		return
-// 	}
+	indexStr := c.Param("id")
+	index, err := strconv.Atoi(indexStr)
+	if err != nil || index <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid_index",
+			"issue": "Invalid certificate index",
+		})
+		return
+	}
 
-// 	c.JSON(http.StatusOK, gin.H{
-// 		"message": "Certificate updated successfully",
-// 	})
-// }
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
+	var seeker struct {
+		Certificates []bson.M `bson:"certificates"`
+	}
+	if err := seekersCollection.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
+		status := http.StatusInternalServerError
+		issue := "Failed to retrieve seeker"
+		if err == mongo.ErrNoDocuments {
+			status = http.StatusNotFound
+			issue = "Seeker not found"
+		}
+		c.JSON(status, gin.H{
+			"error": err.Error(),
+			"issue": issue,
+		})
+		return
+	}
 
+	if index > len(seeker.Certificates) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "index_out_of_range",
+			"issue": "Certificate index is out of range",
+		})
+		return
+	}
 
-// // DeleteCertificate handles deleting a certificate entry
-// func (h *CertificateHandler) DeleteCertificate(c *gin.Context) {
-// 	userID := c.MustGet("userID").(string)
-// 	db := c.MustGet("db").(*mongo.Database)
-// 	seekersCollection := db.Collection("seekers")
+	seeker.Certificates = append(seeker.Certificates[:index-1], seeker.Certificates[index:]...)
 
-// 	id := c.Param("id")
-// 	index, err := strconv.Atoi(id)
-// 	if err != nil || index <= 0 {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid certificate index"})
-// 		return
-// 	}
+	update := bson.M{
+		"$set": bson.M{"certificates": seeker.Certificates},
+		"$currentDate": bson.M{"updated_at": true},
+	}
 
-// 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-// 	defer cancel()
+	if _, err := seekersCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, update); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"issue": "Failed to delete certificate",
+		})
+		return
+	}
 
-// 	var seeker models.Seeker
-// 	if err := seekersCollection.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
-// 		if err == mongo.ErrNoDocuments {
-// 			c.JSON(http.StatusNotFound, gin.H{"error": "Seeker not found"})
-// 			return
-// 		}
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error retrieving seeker"})
-// 		return
-// 	}
-
-// 	if index > len(seeker.Certificates) {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Certificate index out of range"})
-// 		return
-// 	}
-
-// 	// Remove the certificate entry at index-1
-// 	seeker.Certificates = append(seeker.Certificates[:index-1], seeker.Certificates[index:]...)
-
-// 	// Save updated certificates to DB
-// 	update := bson.M{
-// 		"$set": bson.M{
-// 			"certificates": seeker.Certificates,
-// 		},
-// 	}
-
-// 	_, err = seekersCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, update)
-// 	if err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete certificate"})
-// 		return
-// 	}
-
-// 	c.JSON(http.StatusOK, gin.H{"message": "Certificate deleted successfully"})
-// }
+	c.JSON(http.StatusOK, gin.H{"issue": "Certificate deleted successfully"})
+}
