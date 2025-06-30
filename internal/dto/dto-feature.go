@@ -22,7 +22,7 @@ type InfoBlocks struct {
 }
 
 type Profile struct {
-    PhotoUrl            *string
+    PhotoUrl            *string          `json:"photo,omitempty"`
     FirstName           string           `json:"first_name"`
     SecondName          *string          `json:"second_name,omitempty"`
     ProfileCompletion   int              `json:"profile_completion"`

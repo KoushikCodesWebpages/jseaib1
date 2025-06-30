@@ -113,4 +113,15 @@ func SetupDataEntryRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Confi
 		keySkillsRoutes.GET("", keySkillsHandler.GetKeySkills)
 		keySkillsRoutes.POST("", keySkillsHandler.SetKeySkills)
 	}
+	
+	//CVNCL FORMAT routes
+
+	cvClHandler := preference.NewFormatHandler()
+	cvClRoutes := r.Group("/b1/formats")
+	cvClRoutes.Use(middleware.AuthMiddleware())
+	{
+		cvClRoutes.PUT("/cv", cvClHandler.UpdateCvFormat)
+		cvClRoutes.PUT("/cl", cvClHandler.UpdateClFormat)
+	}
+
 }

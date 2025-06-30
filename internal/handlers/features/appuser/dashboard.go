@@ -121,12 +121,13 @@ func (h *SeekerProfileHandler) buildFields(s models.Seeker) dto.Profile {
     // }
 
     return dto.Profile{
-        FirstName:         repository.DereferenceString(repository.GetOptionalField(s.PersonalInfo, "first_name")),
-        SecondName:        repository.GetOptionalField(s.PersonalInfo, "second_name"),
-        ProfileCompletion: completion,
-        PrimaryJobTitle:   s.PrimaryTitle,
-        SecondaryJobTitle: ptrVal(s.SecondaryTitle),
-        TertiaryJobTitle:  ptrVal(s.TertiaryTitle),
+        PhotoUrl:           s.PhotoUrl,   
+        FirstName:          repository.DereferenceString(repository.GetOptionalField(s.PersonalInfo, "first_name")),
+        SecondName:         repository.GetOptionalField(s.PersonalInfo, "second_name"),
+        ProfileCompletion:  completion,
+        PrimaryJobTitle:    s.PrimaryTitle,
+        SecondaryJobTitle:  ptrVal(s.SecondaryTitle),
+        TertiaryJobTitle:   ptrVal(s.TertiaryTitle),
     }
 }
 
