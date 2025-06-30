@@ -112,16 +112,14 @@ func (h *SeekerProfileHandler) buildInfo(s models.Seeker) dto.InfoBlocks {
 }
 
 func (h *SeekerProfileHandler) buildFields(s models.Seeker) dto.Profile {
-    // Calculate profile completion and missing fields
+    // Calculate profile completion
     completion, _ := repository.CalculateProfileCompletion(s)
 
-    // // Log missing fields
-    // if len(missing) > 0 {
-    //     log.Printf("⚠️ Missing profile fields for user %s: %v", s.AuthUserID, missing)
-    // }
+    // Include user ID in the photo URL
+    photoURL := "/b1/photo/view/" + s.AuthUserID
 
     return dto.Profile{
-        PhotoUrl:           s.PhotoUrl,   
+        Photo:              photoURL,
         FirstName:          repository.DereferenceString(repository.GetOptionalField(s.PersonalInfo, "first_name")),
         SecondName:         repository.GetOptionalField(s.PersonalInfo, "second_name"),
         ProfileCompletion:  completion,
@@ -130,6 +128,7 @@ func (h *SeekerProfileHandler) buildFields(s models.Seeker) dto.Profile {
         TertiaryJobTitle:   ptrVal(s.TertiaryTitle),
     }
 }
+
 
 
 // Build the Checklist

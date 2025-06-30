@@ -124,4 +124,15 @@ func SetupDataEntryRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Confi
 		cvClRoutes.PUT("/cl", cvClHandler.UpdateClFormat)
 	}
 
+	//PHOTO UPLOAD routes
+
+	photoHandler := preference.NewPhotoHandler()
+	photoRoutes := r.Group("/b1/photo")
+	photoRoutes.Use(middleware.AuthMiddleware()) // Only for upload & self
+	{
+		photoRoutes.POST("/upload", photoHandler.UploadProfilePhoto)
+		photoRoutes.GET("", photoHandler.GetProfilePhoto) // current user
+	}
+	r.GET("/b1/photo/view/:user_id", photoHandler.PublicGetProfilePhoto) 
+
 }

@@ -57,7 +57,8 @@ type Seeker struct {
 	ID                          primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
 	AuthUserID                  string             `json:"auth_user_id" bson:"auth_user_id"`
 
-	PhotoUrl                    *string             `json:"photo,omitempty" bson:"photo,omitempty"`
+	Photo 						[]byte 				`json:"photo,omitempty" bson:"photo,omitempty"`
+
 
 	TotalApplications           int                `json:"total_applications" bson:"total_applications"`
 	WeeklyAppliedJobs           int                `json:"weekly_applications_count" bson:"weekly_applications_count"`
