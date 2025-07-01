@@ -57,7 +57,7 @@ func InitDB(cfg *config.Config) (*mongo.Client, *mongo.Database) {
 	// 	CollectionCoverLetters,
 	// 	CollectionCV,
 	// 	CollectionMatchScores,
-	//	CollectionJobs,
+	// 	CollectionJobs,
 	// })
 	
 	// // Create indexes

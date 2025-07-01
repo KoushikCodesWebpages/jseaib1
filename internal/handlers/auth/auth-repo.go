@@ -113,7 +113,7 @@ func (r *UserRepo) CreateSeeker(input dto.SeekerSignUpInput, hashedPassword stri
 		TotalApplications:           0,
 		WeeklyAppliedJobs:           0,
 		TopJobs:                     0,
-
+		StripeCustomerID: 			"",
 		SubscriptionTier:            "free",
 		SubscriptionPeriod:          "monthly",
 		SubscriptionIntervalStart:   time.Now(),

@@ -6,6 +6,8 @@ type ProjectConfig struct {
 	// General Settings
 	AuthUserModel                string
 	FrontendBaseUrl              string
+	SuccessUrl				     string
+	CancelUrl					 string
 
 	// CORS and Auth Settings
 	CORSAllowedOrigins           string
@@ -42,6 +44,8 @@ func LoadProjectConfig() (*ProjectConfig, error) {
 	ProjectConfig := &ProjectConfig{
 		AuthUserModel:              viper.GetString("AUTH_USER_MODEL"),
 		FrontendBaseUrl:            viper.GetString("FRONTEND_BASE_URL"),
+		SuccessUrl: 				viper.GetString("SUCCESS_URL"),
+		CancelUrl: 					viper.GetString("CANCEL_URL"),
 
 		CORSAllowedOrigins:         viper.GetString("CORS_ALLOWED_ORIGINS"),
 		AuthHeaderTypes:            viper.GetString("AUTH_HEADER_TYPES"),

@@ -47,8 +47,9 @@ func SeekerProfileResponse(seeker models.Seeker) SeekerResponse {
 type SeekerDTO struct {
 	ID                          primitive.ObjectID `json:"_id,omitempty"`
 	AuthUserID                  string             `json:"auth_user_id"`
+	StripeCustomerID			string				`json:"stripe_customer_id"`
     FirstName                   string              `json:"first_name"`
-    ProfileCompletion           int                 `json:profile_completion`
+    ProfileCompletion           int                 `json:"profile_completion"`
 	Photo                       string             `json:"photo,omitempty"` // URL string instead of binary
 
 	TotalApplications           int                `json:"total_applications"`

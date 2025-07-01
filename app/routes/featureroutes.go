@@ -9,7 +9,7 @@ import (
 	"RAAS/internal/handlers/features/generation"
 	"RAAS/internal/handlers/features/jobs"
 	"RAAS/internal/handlers"
-
+	"RAAS/internal/handlers/features/payment"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -62,9 +62,9 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 	PUT("/:job_id/status", applicationTrackerHandler.UpdateApplicationStatus)
 
 	r.GET("/b1/test/academics/dates", handlers.TestAcademicDatesHandler)
+
+
 	// // === GENERATION ===
-
-
 
     // Group route under /b1/generate-cover-letter
 	coverLetterHandler := generation.NewInternalCoverLetterHandler()
@@ -91,6 +91,14 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 	route.PUT("/cl",extGenHandler.PutCoverLetter)
 
 	
+	//PAYMENT routes
+
+	paymentHandler := payment.NewPaymentHandler()
+	payRoutes := r.Group("/b1/payment", auth)
+	{
+		payRoutes.POST("/checkout", paymentHandler.CreateCheckout)
+	}
+	r.POST("/b1/payment/bus", paymentHandler.Webhook)
 
 	// // JOB METADATA routes
 

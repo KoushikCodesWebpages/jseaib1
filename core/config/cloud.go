@@ -34,6 +34,17 @@ type CloudConfig struct {
     CV_Url                     string
 
     GEN_API_KEY                string
+
+    BasicPlanMonthly           string
+    BasicPlanQuaterly          string
+    AdvancedPlanMonthly        string
+    AdvancedPlanQuaterly       string
+    PremiumPlanMonthly         string
+    PremiumPlanQuaterly        string
+
+    StripeSecretKey            string
+    StripePublishableKey       string
+    StripeWebHookKey           string
 }
 
 func LoadCloudConfig() (*CloudConfig, error) {
@@ -65,6 +76,19 @@ func LoadCloudConfig() (*CloudConfig, error) {
         CL_Url:                     viper.GetString("COVER_LETTER_API_URL"),
         CV_Url:                     viper.GetString("CV_RESUME_API_URL"),
         GEN_API_KEY:                viper.GetString("COVER_CV_API_KEY"),
+
+        BasicPlanMonthly:           viper.GetString("PRICE_BASIC_MONTH"),
+        BasicPlanQuaterly:          viper.GetString("PRICE_BASIC_QUAD"),
+        AdvancedPlanMonthly:        viper.GetString("PRICE_ADVANCED_MONTH"),
+        AdvancedPlanQuaterly:       viper.GetString("PRICE_ADVANCED_QUAD"),
+        PremiumPlanMonthly:         viper.GetString("PRICE_PREMIUM_MONTH"),
+        PremiumPlanQuaterly:        viper.GetString("PRICE_PREMIUM_QUAD"),
+
+        StripeSecretKey:            viper.GetString("STRIPE_SECRET_KEY"),
+        StripePublishableKey:       viper.GetString("STRIPE_PUBLISHABLE_KEY"),
+        StripeWebHookKey:           viper.GetString("STRIPE_WEBHOOK_SECRET"),
+
+
     }
 
     // Validate required fields
