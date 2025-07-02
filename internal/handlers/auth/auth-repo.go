@@ -108,7 +108,7 @@ func (r *UserRepo) CreateSeeker(input dto.SeekerSignUpInput, hashedPassword stri
 
 		seeker := models.Seeker{
 		AuthUserID:                  authUserID,
-		Photo:                    	nil, // or set default if needed
+		PhotoUrl:                    "", // or set default if needed
 
 		TotalApplications:           0,
 		WeeklyAppliedJobs:           0,
@@ -121,7 +121,7 @@ func (r *UserRepo) CreateSeeker(input dto.SeekerSignUpInput, hashedPassword stri
 
 		InternalApplications:        5,
 		ExternalApplications:        2,
-		ProficicencyTest:            5,
+		ProficiencyTest:            1,
 
 		PersonalInfo:                bson.M{},
 		WorkExperiences:             []bson.M{},

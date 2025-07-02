@@ -122,8 +122,6 @@ func PrintAllCollectionsHandler(c *gin.Context) {
 
 	// Iterate over all collections and print their contents
 	for _, collectionName := range collections {
-		log.Printf("🔄 Fetching documents from collection: %s", collectionName)
-
 		// Fetch all documents from the collection
 		cursor, err := db.Collection(collectionName).Find(c, bson.M{})
 		if err != nil {
@@ -135,12 +133,6 @@ func PrintAllCollectionsHandler(c *gin.Context) {
 		if err := cursor.All(c, &documents); err != nil {
 			log.Printf("❌ Error reading documents from collection %s: %v", collectionName, err)
 			continue
-		}
-
-		// Print the content of the collection
-		log.Printf("✅ Retrieved documents from collection %s", collectionName)
-		for _, doc := range documents {
-			log.Printf("Document: %v", doc)
 		}
 
 		// You can also print this directly to the response if needed

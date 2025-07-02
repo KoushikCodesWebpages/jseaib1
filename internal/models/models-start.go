@@ -26,6 +26,7 @@ const (
 	CollectionMatchScores          = "match_scores"
 	CollectionJobs                 = "jobs"
 	CollectionCounter			   = "counters"
+	CollectionProfilePic		   = "profilepic"
 )
 
 // InitDB connects to MongoDB, initializes indexes, and optionally creates collections
@@ -57,6 +58,7 @@ func InitDB(cfg *config.Config) (*mongo.Client, *mongo.Database) {
 	// 	CollectionCoverLetters,
 	// 	CollectionCV,
 	// 	CollectionMatchScores,
+	//	CollectionProfilePic
 	// 	CollectionJobs,
 	// })
 	
@@ -92,6 +94,7 @@ func resetCollections() {
 		CollectionMatchScores,
 		// CollectionJobs,
 		CollectionCounter,
+		CollectionProfilePic,
 	}
 
 	for _, col := range collections {
@@ -136,6 +139,7 @@ func CreateAllIndexes() {
 		{CollectionCV, CreateCVIndexes},
 		{CollectionMatchScores, CreateMatchScoreIndexes},
 		{CollectionJobs, CreateJobIndexes},
+		{CollectionProfilePic,CreateProfilePicIndexes},
 	}
 
 	for _, task := range tasks {

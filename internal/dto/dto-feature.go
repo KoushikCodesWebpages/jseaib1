@@ -15,9 +15,9 @@ type InfoBlocks struct {
     SubscriptionIntervalEnd     time.Time           `json:"subscription_interval_end"`
     SubscriptionPeriod          string              `json:"subscription_period"`
 
-    InternalApplications        int             `json:"internal_application_count"`
-    ExternalApplications        int              `json:"external_application_count"`
-    ProficicencyTest			int 		        `json:"proficicency_test"`
+    InternalApplications        int                 `json:"internal_application_count"`
+    ExternalApplications        int                 `json:"external_application_count"`
+    ProficiencyTest			int 		            `json:"proficiency_test"`
 
 }
 

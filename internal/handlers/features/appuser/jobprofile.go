@@ -48,7 +48,8 @@ func (h *SeekerHandler) GetSeekerProfile(c *gin.Context) {
 	dto := dto.SeekerDTO{
 		ID:                    		seeker.ID,
 		AuthUserID:            		seeker.AuthUserID,
-		Photo:                 		"/b1/photo/view/" + seeker.AuthUserID,
+		StripeCustomerID: 			seeker.StripeCustomerID,	
+		PhotoUrl:                 		"/b1/photo/view/" + seeker.AuthUserID,
 		TotalApplications:     		seeker.TotalApplications,
 		WeeklyAppliedJobs:     		seeker.WeeklyAppliedJobs,
 		TopJobs:               		seeker.TopJobs,
@@ -58,7 +59,7 @@ func (h *SeekerHandler) GetSeekerProfile(c *gin.Context) {
 		SubscriptionIntervalEnd:   	seeker.SubscriptionIntervalEnd,
 		ExternalApplications:  		seeker.ExternalApplications,
 		InternalApplications:  		seeker.InternalApplications,
-		ProficicencyTest:      		seeker.ProficicencyTest,
+		ProficiencyTest:      		seeker.ProficiencyTest,
 		PersonalInfo:          		seeker.PersonalInfo,
 		WorkExperiences:       		seeker.WorkExperiences,
 		Academics:             		seeker.Academics,

@@ -50,7 +50,7 @@ type SeekerDTO struct {
 	StripeCustomerID			string				`json:"stripe_customer_id"`
     FirstName                   string              `json:"first_name"`
     ProfileCompletion           int                 `json:"profile_completion"`
-	Photo                       string             `json:"photo,omitempty"` // URL string instead of binary
+	PhotoUrl                    string             `json:"photo_url,omitempty"` // URL string instead of binary
 
 	TotalApplications           int                `json:"total_applications"`
 	WeeklyAppliedJobs           int                `json:"weekly_applications_count"`
@@ -63,7 +63,7 @@ type SeekerDTO struct {
 
 	ExternalApplications        int                `json:"external_application_count"`
 	InternalApplications        int                `json:"internal_application_count"`
-	ProficicencyTest            int                `json:"proficicency_test"`
+	ProficiencyTest            int                `json:"proficiency_test"`
 
 	PersonalInfo                bson.M             `json:"personal_info"`
 	WorkExperiences             []bson.M           `json:"work_experiences"`

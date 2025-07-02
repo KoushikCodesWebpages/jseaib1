@@ -107,7 +107,7 @@ func (h *SeekerProfileHandler) buildInfo(s models.Seeker) dto.InfoBlocks {
         
 		ExternalApplications:  s.ExternalApplications,
 		InternalApplications:  s.InternalApplications,
-		ProficicencyTest:      s.ProficicencyTest,
+		ProficiencyTest:      s.ProficiencyTest,
 	}
 }
 

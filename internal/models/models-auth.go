@@ -57,7 +57,7 @@ type Seeker struct {
 	ID                          primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
 	AuthUserID                  string             `json:"auth_user_id" bson:"auth_user_id"`
 
-	Photo 						[]byte 				`json:"photo,omitempty" bson:"photo,omitempty"`
+	PhotoUrl					string 				`json:"photo,omitempty" bson:"photo,omitempty"`
 
 
 	TotalApplications           int                `json:"total_applications" bson:"total_applications"`
@@ -72,7 +72,7 @@ type Seeker struct {
 
 	ExternalApplications         int                `json:"external_application_count" bson:"external_application_count"`
 	InternalApplications         int                `json:"internal_application_count" bson:"internal_application_count"`
-	ProficicencyTest            int                	`json:"proficicency_test" bson:"proficicency_test"`
+	ProficiencyTest            	int                	`json:"proficiency_test" bson:"proficiency_test"`
 
 	PersonalInfo                bson.M             `json:"personal_info" bson:"personal_info"`
 	WorkExperiences             []bson.M           `json:"work_experiences" bson:"work_experiences"`
@@ -145,6 +145,25 @@ type Admin struct {
 }
 
 func CreateAdminIndexes(collection *mongo.Collection) error {
+	// Create index for AuthUserID to be unique
+	indexModel := mongo.IndexModel{
+		Keys:    bson.D{{Key: "auth_user_id", Value: 1}}, 
+		Options: options.Index().SetUnique(true),      
+	}
+	_, err := collection.Indexes().CreateOne(context.Background(), indexModel)
+	return err
+}
+
+type ProfilePic struct {
+	ID        				primitive.ObjectID 			`bson:"_id,omitempty" json:"id"`
+	AuthUserID    			primitive.ObjectID 			`bson:"auth_user_id" json:"auth_user_id"`           // Reference to the user
+	Image     				[]byte  			`bson:"image" json:"-"`                   // Binary data (image file)
+	MimeType  				string             			`bson:"mime_type" json:"mime_type"`       // e.g. image/png, image/jpeg
+	CreatedAt 				time.Time          			`bson:"created_at" json:"created_at"`
+	UpdatedAt 				time.Time          			`bson:"updated_at" json:"updated_at"`
+}
+
+func CreateProfilePicIndexes(collection *mongo.Collection) error {
 	// Create index for AuthUserID to be unique
 	indexModel := mongo.IndexModel{
 		Keys:    bson.D{{Key: "auth_user_id", Value: 1}}, 

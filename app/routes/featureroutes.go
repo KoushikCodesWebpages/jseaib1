@@ -98,7 +98,7 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 	{
 		payRoutes.POST("/checkout", paymentHandler.CreateCheckout)
 	}
-	r.POST("/b1/payment/bus", paymentHandler.Webhook)
+	r.POST("/b1/payment/webhook", paymentHandler.Webhook)
 
 	// // JOB METADATA routes
 

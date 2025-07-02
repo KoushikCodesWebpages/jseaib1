@@ -36,11 +36,11 @@ type CloudConfig struct {
     GEN_API_KEY                string
 
     BasicPlanMonthly           string
-    BasicPlanQuaterly          string
+    BasicPlanQuarterly          string
     AdvancedPlanMonthly        string
-    AdvancedPlanQuaterly       string
+    AdvancedPlanQuarterly       string
     PremiumPlanMonthly         string
-    PremiumPlanQuaterly        string
+    PremiumPlanQuarterly        string
 
     StripeSecretKey            string
     StripePublishableKey       string
@@ -78,11 +78,11 @@ func LoadCloudConfig() (*CloudConfig, error) {
         GEN_API_KEY:                viper.GetString("COVER_CV_API_KEY"),
 
         BasicPlanMonthly:           viper.GetString("PRICE_BASIC_MONTH"),
-        BasicPlanQuaterly:          viper.GetString("PRICE_BASIC_QUAD"),
+        BasicPlanQuarterly:          viper.GetString("PRICE_BASIC_QUAD"),
         AdvancedPlanMonthly:        viper.GetString("PRICE_ADVANCED_MONTH"),
-        AdvancedPlanQuaterly:       viper.GetString("PRICE_ADVANCED_QUAD"),
+        AdvancedPlanQuarterly:       viper.GetString("PRICE_ADVANCED_QUAD"),
         PremiumPlanMonthly:         viper.GetString("PRICE_PREMIUM_MONTH"),
-        PremiumPlanQuaterly:        viper.GetString("PRICE_PREMIUM_QUAD"),
+        PremiumPlanQuarterly:        viper.GetString("PRICE_PREMIUM_QUAD"),
 
         StripeSecretKey:            viper.GetString("STRIPE_SECRET_KEY"),
         StripePublishableKey:       viper.GetString("STRIPE_PUBLISHABLE_KEY"),
