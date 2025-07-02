@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/disintegration/imaging"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -24,16 +23,9 @@ type PhotoHandler struct{}
 func NewPhotoHandler() *PhotoHandler {
 	return &PhotoHandler{}
 }
-
 func (h *PhotoHandler) UploadProfilePhoto(c *gin.Context) {
 	db := c.MustGet("db").(*mongo.Database)
-	userIDStr := c.MustGet("userID").(string)
-
-	authUserID, err := primitive.ObjectIDFromHex(userIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"issue": "Invalid user ID", "error": err.Error()})
-		return
-	}
+	userID := c.MustGet("userID").(string)
 
 	file, _, err := c.Request.FormFile("photo")
 	if err != nil {
@@ -42,20 +34,22 @@ func (h *PhotoHandler) UploadProfilePhoto(c *gin.Context) {
 	}
 	defer file.Close()
 
+	// Read and decode image
 	imgData, err := io.ReadAll(file)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"issue": "Failed to read photo data", "error": err.Error()})
 		return
 	}
-
 	img, _, err := image.Decode(bytes.NewReader(imgData))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"issue": "Invalid image format", "error": err.Error()})
 		return
 	}
 
+	// Resize to 640x640
 	resized := imaging.Resize(img, 640, 640, imaging.Lanczos)
 
+	// Encode as JPEG
 	var buf bytes.Buffer
 	if err := jpeg.Encode(&buf, resized, &jpeg.Options{Quality: 75}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"issue": "Failed to encode image", "error": err.Error()})
@@ -68,7 +62,7 @@ func (h *PhotoHandler) UploadProfilePhoto(c *gin.Context) {
 	// Save to profile_pics collection
 	profilePics := db.Collection("profile_pics")
 	_, err = profilePics.UpdateOne(c,
-		bson.M{"auth_user_id": authUserID},
+		bson.M{"auth_user_id": userID},
 		bson.M{
 			"$set": bson.M{
 				"image":      finalBytes,
@@ -76,7 +70,7 @@ func (h *PhotoHandler) UploadProfilePhoto(c *gin.Context) {
 				"updated_at": now,
 			},
 			"$setOnInsert": bson.M{
-				"auth_user_id": authUserID,
+				"auth_user_id": userID,
 				"created_at":   now,
 			},
 		},
@@ -87,12 +81,12 @@ func (h *PhotoHandler) UploadProfilePhoto(c *gin.Context) {
 		return
 	}
 
-	// Update photo URL in seekers collection
-	photoURL := "/b1/photo/view/" + userIDStr
+	// Update seeker photo URL
+	photoURL := "/b1/photo/view/" + userID
 	seekers := db.Collection("seekers")
 	_, err = seekers.UpdateOne(c,
-		bson.M{"auth_user_id": userIDStr},
-		bson.M{"$set": bson.M{"photo": photoURL, "updated_at": now}},
+		bson.M{"auth_user_id": userID},
+		bson.M{"$set": bson.M{"photo_url": photoURL, "updated_at": now}},
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"issue": "Failed to update seeker photo URL", "error": err.Error()})
@@ -125,18 +119,12 @@ func (h *PhotoHandler) PublicGetProfilePhoto(c *gin.Context) {
 func sendProfilePhotoByID(c *gin.Context, db *mongo.Database, userID string) {
 	profilePics := db.Collection("profile_pics")
 
-	authUserID, err := primitive.ObjectIDFromHex(userID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"issue": "Invalid user ID", "error": err.Error()})
-		return
-	}
-
 	var result struct {
 		Image    []byte `bson:"image"`
 		MimeType string `bson:"mime_type"`
 	}
 
-	err = profilePics.FindOne(c, bson.M{"auth_user_id": authUserID}).Decode(&result)
+	err := profilePics.FindOne(c, bson.M{"auth_user_id": userID}).Decode(&result)
 	if err != nil || len(result.Image) == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"issue": "Profile photo not found"})
 		return

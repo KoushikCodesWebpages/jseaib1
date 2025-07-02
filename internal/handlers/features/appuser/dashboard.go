@@ -94,20 +94,20 @@ func (h *SeekerProfileHandler) fetchSeeker(c *gin.Context, db *mongo.Database, u
 
 func (h *SeekerProfileHandler) buildInfo(s models.Seeker) dto.InfoBlocks {
 	return dto.InfoBlocks{
-		AuthUserID:            s.AuthUserID,
+		AuthUserID:                 s.AuthUserID,
 
-        TotalApplications:     s.TotalApplications,
-        WeeklyAppliedJobs:     s.WeeklyAppliedJobs,	
-		TopJobs:               s.TopJobs,
+        TotalApplications:          s.TotalApplications,
+        WeeklyAppliedJobs:          s.WeeklyAppliedJobs,	
+		TopJobs:                    s.TopJobs,
 
-		SubscriptionTier:      s.SubscriptionTier,
-        SubscriptionPeriod: s.SubscriptionPeriod,
+		SubscriptionTier:           s.SubscriptionTier,
+        SubscriptionPeriod:         s.SubscriptionPeriod,
 		SubscriptionIntervalStart:  s.SubscriptionIntervalStart,
-        SubscriptionIntervalEnd: s.SubscriptionIntervalEnd,
+        SubscriptionIntervalEnd:    s.SubscriptionIntervalEnd,
         
-		ExternalApplications:  s.ExternalApplications,
-		InternalApplications:  s.InternalApplications,
-		ProficiencyTest:      s.ProficiencyTest,
+		ExternalApplications:       s.ExternalApplications,
+		InternalApplications:       s.InternalApplications,
+		ProficiencyTest:            s.ProficiencyTest,
 	}
 }
 
@@ -115,11 +115,8 @@ func (h *SeekerProfileHandler) buildFields(s models.Seeker) dto.Profile {
     // Calculate profile completion
     completion, _ := repository.CalculateProfileCompletion(s)
 
-    // Include user ID in the photo URL
-    photoURL := "/b1/photo/view/" + s.AuthUserID
-
     return dto.Profile{
-        Photo:              photoURL,
+        PhotoUrl:           s.PhotoUrl,
         FirstName:          repository.DereferenceString(repository.GetOptionalField(s.PersonalInfo, "first_name")),
         SecondName:         repository.GetOptionalField(s.PersonalInfo, "second_name"),
         ProfileCompletion:  completion,

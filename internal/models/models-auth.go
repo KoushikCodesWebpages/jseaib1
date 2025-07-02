@@ -57,7 +57,7 @@ type Seeker struct {
 	ID                          primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
 	AuthUserID                  string             `json:"auth_user_id" bson:"auth_user_id"`
 
-	PhotoUrl					string 				`json:"photo,omitempty" bson:"photo,omitempty"`
+	PhotoUrl					string 				`json:"photo_url,omitempty" bson:"photo_url,omitempty"`
 
 
 	TotalApplications           int                `json:"total_applications" bson:"total_applications"`
@@ -155,9 +155,8 @@ func CreateAdminIndexes(collection *mongo.Collection) error {
 }
 
 type ProfilePic struct {
-	ID        				primitive.ObjectID 			`bson:"_id,omitempty" json:"id"`
-	AuthUserID    			primitive.ObjectID 			`bson:"auth_user_id" json:"auth_user_id"`           // Reference to the user
-	Image     				[]byte  			`bson:"image" json:"-"`                   // Binary data (image file)
+	AuthUserID    			string			`bson:"auth_user_id" json:"auth_user_id"`           // Reference to the user
+	Image     				[]byte  					`bson:"image" json:"-"`                   // Binary data (image file)
 	MimeType  				string             			`bson:"mime_type" json:"mime_type"`       // e.g. image/png, image/jpeg
 	CreatedAt 				time.Time          			`bson:"created_at" json:"created_at"`
 	UpdatedAt 				time.Time          			`bson:"updated_at" json:"updated_at"`

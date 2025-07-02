@@ -49,7 +49,7 @@ func (h *SeekerHandler) GetSeekerProfile(c *gin.Context) {
 		ID:                    		seeker.ID,
 		AuthUserID:            		seeker.AuthUserID,
 		StripeCustomerID: 			seeker.StripeCustomerID,	
-		PhotoUrl:                 		"/b1/photo/view/" + seeker.AuthUserID,
+		PhotoUrl:                 	seeker.PhotoUrl,
 		TotalApplications:     		seeker.TotalApplications,
 		WeeklyAppliedJobs:     		seeker.WeeklyAppliedJobs,
 		TopJobs:               		seeker.TopJobs,

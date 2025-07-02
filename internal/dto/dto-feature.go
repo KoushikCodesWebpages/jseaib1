@@ -22,13 +22,13 @@ type InfoBlocks struct {
 }
 
 type Profile struct {
-    Photo               string 	          `json:"photo,omitempty"`
-    FirstName           string           `json:"first_name"`
-    SecondName          *string          `json:"second_name,omitempty"`
-    ProfileCompletion   int              `json:"profile_completion"`
-    PrimaryJobTitle     string           `json:"primary_job_title"`
-    SecondaryJobTitle   string           `json:"secondary_job_title"`
-    TertiaryJobTitle    string           `json:"tertiary_job_title"`
+    PhotoUrl                string 	     `json:"photo_url,omitempty"`
+    FirstName               string           `json:"first_name"`
+    SecondName              *string          `json:"second_name,omitempty"`
+    ProfileCompletion       int              `json:"profile_completion"`
+    PrimaryJobTitle         string           `json:"primary_job_title"`
+    SecondaryJobTitle       string           `json:"secondary_job_title"`
+    TertiaryJobTitle        string           `json:"tertiary_job_title"`
 }
 
 type Checklist struct {
