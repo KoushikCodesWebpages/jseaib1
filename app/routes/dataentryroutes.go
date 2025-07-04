@@ -124,6 +124,16 @@ func SetupDataEntryRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Confi
 		cvClRoutes.PUT("/cl", cvClHandler.UpdateClFormat)
 	}
 
+
+	// DATA EXTRACTION routes
+	dataExtractionHandler := preference.NewDataExtractionHandler()
+	dataExtractionRoutes := r.Group("/b1/data-extraction")
+	dataExtractionRoutes.Use(middleware.AuthMiddleware())
+	{
+		dataExtractionRoutes.POST("/resume", dataExtractionHandler.ExtractFromPDF)
+	}
+
+
 	//PHOTO UPLOAD routes
 
 	photoHandler := preference.NewPhotoHandler()
