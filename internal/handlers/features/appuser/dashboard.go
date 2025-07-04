@@ -113,7 +113,7 @@ func (h *SeekerProfileHandler) buildInfo(s models.Seeker) dto.InfoBlocks {
 
 func (h *SeekerProfileHandler) buildFields(s models.Seeker) dto.Profile {
     // Calculate profile completion
-    completion, _ := repository.CalculateProfileCompletion(s)
+    completion, _ := repository.CalculateJobProfileCompletion(s)
 
     return dto.Profile{
         PhotoUrl:           s.PhotoUrl,

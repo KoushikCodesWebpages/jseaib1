@@ -7,12 +7,14 @@ import (
 	"RAAS/internal/models"
 	"RAAS/core/security"
 	"RAAS/utils"
-
+	"RAAS/internal/handlers/features/jobs"
+	"RAAS/internal/handlers/repository"
 
 	"context"
 	"strings"
 	"fmt"
 	"net/http"
+	"log"
 	"time"
 	// "errors"
 	"github.com/gin-gonic/gin"
@@ -252,6 +254,7 @@ func SeekerLogin(c *gin.Context) {
 	}
 
 	db := c.MustGet("db").(*mongo.Database)
+	seekersCollection := db.Collection("seekers")
 	userRepo := NewUserRepo(db)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -314,17 +317,45 @@ func SeekerLogin(c *gin.Context) {
 		})
 		return
 	}
+		var seeker models.Seeker
+	if err := seekersCollection.FindOne(ctx, bson.M{"auth_user_id": user.AuthUserID}).Decode(&seeker); err != nil {
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"issue": "Seeker not found"})
+			log.Printf("Seeker not found for auth_user_id: %s", user.AuthUserID)
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"issue": "Failed to retrieve seeker"})
+			log.Printf("Failed to retrieve seeker for auth_user_id: %s, Error: %v", user.AuthUserID, err)
+		}
+		return
+	}
+	matchscore := false
+	completion, missing := repository.CalculateJobProfileCompletion(seeker)
+		if completion == 100 || len(missing) == 0 {
+			matchscore=true
+
+			fmt.Println("starting match score calculation")
+			// ✅ Trigger job match score calculation
+			err = jobs.StartJobMatchScoreCalculation(c, db, user.AuthUserID)
+			if err != nil {
+				fmt.Println("Error starting job match score calculation:", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start job match process"})
+				return
+		}
+	}
+
+
 
 	// ✅ Final response
 	c.JSON(http.StatusOK, gin.H{
 		"issue": "Login successful.",
 		"token": token,
 		"user": gin.H{
-			"email":         user.Email,
-			"authUserId":    user.AuthUserID,
-			"role":          user.Role,
-			"emailVerified": user.EmailVerified,
-			"progress":      progress,
+			"email":         	user.Email,
+			"auth_user_id":    	user.AuthUserID,
+			"role":          	user.Role,
+			"email_verified": 	user.EmailVerified,
+			"progress":      	progress,
+			"match_score": 		matchscore,
 		},
 	})
 }

@@ -5,10 +5,12 @@ import (
 	"log"
 	"net/http"
 	"time"
+	"fmt"
 
 	"RAAS/internal/handlers/repository"
 	"RAAS/internal/models"
 	"RAAS/internal/dto"
+	"RAAS/internal/handlers/features/jobs"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -42,7 +44,7 @@ func (h *SeekerHandler) GetSeekerProfile(c *gin.Context) {
 	}
 
 	// Calculate profile completion
-	completion, missing := repository.CalculateProfileCompletion(seeker)
+	completion, missing := repository.CalculateJobProfileCompletion(seeker)
 
 	// Build DTO
 	dto := dto.SeekerDTO{
@@ -78,10 +80,25 @@ func (h *SeekerHandler) GetSeekerProfile(c *gin.Context) {
 		ProfileCompletion:     		completion,
 	}
 
+	matchscore := false
+		if completion == 100 || len(missing) == 0 {
+			matchscore=true
+
+			fmt.Println("starting match score calculation")
+			// ✅ Trigger job match score calculation
+			err := jobs.StartJobMatchScoreCalculation(c, db, userID)
+			if err != nil {
+				fmt.Println("Error starting job match score calculation:", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start job match process"})
+				return
+		}
+	}
+
 	// Return response
 	c.JSON(http.StatusOK, gin.H{
 		"seeker":            dto,
 		"profile_completion": completion,
 		"not_completed":     missing,
+		"match_score":matchscore,
 	})
 }

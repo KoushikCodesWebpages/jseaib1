@@ -87,7 +87,7 @@ func GetNextSequence(db *mongo.Database, name string) (uint, error) {
 }
 
 // CalculateProfileCompletion computes profile completion percentage and returns missing fields
-func CalculateProfileCompletion(seeker models.Seeker) (int, []string) {
+func CalculateJobProfileCompletion(seeker models.Seeker) (int, []string) {
 	completion := 0
 	var missing []string
 
@@ -116,9 +116,16 @@ func CalculateProfileCompletion(seeker models.Seeker) (int, []string) {
 		missing = append(missing, "work_experiences, past_project")
 	}
 
+	// Languages
+	if len(seeker.Languages) > 0 {
+		completion += 10
+	} else {
+		missing = append(missing, "languages")
+	}
+
 	// Certificates
 	if len(seeker.Certificates) > 0 {
-		completion += 20
+		completion += 10
 	} else {
 		missing = append(missing, "certificates")
 	}
