@@ -5,13 +5,17 @@ import (
     "log"
     "net/http"
     "time"
+    "fmt"
 
     "RAAS/internal/dto"
     "RAAS/internal/handlers/repository"
     "RAAS/internal/models"
+
+
     "github.com/gin-gonic/gin"
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/mongo"
+    "go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type SeekerProfileHandler struct{}
@@ -63,7 +67,7 @@ func (h *SeekerProfileHandler) GetDashboard(c *gin.Context) {
 		InfoBlocks:              h.buildInfo(*seeker),
 		Profile:                 h.buildFields(*seeker),
 		Checklist:               h.buildChecklist(*seeker),
-		MiniNewJobsResponse:     h.buildMiniJobs(),
+		MiniNewJobsResponse:     h.buildMiniJobs(db,userID),
 		MiniTestSummaryResponse: h.buildMiniTestSummary(),
 	}
 
@@ -144,16 +148,72 @@ func (h *SeekerProfileHandler) buildChecklist(s models.Seeker) dto.Checklist {
     }
 }
 
-// Static new job list
-func (h *SeekerProfileHandler) buildMiniJobs() dto.MiniNewJobsResponse {
-    return dto.MiniNewJobsResponse{
-        MiniNewJobs: []dto.MiniJob{
-            {Title: "Backend Engineer", Company: "TechCorp", Location: "Berlin, Germany", ProfileMatch: 85},
-            {Title: "Frontend Developer", Company: "WebWorks", Location: "Bavaria, Germany", ProfileMatch: 78},
-            {Title: "DevOps Engineer", Company: "CloudSync Ltd.", Location: "Baden-Württemberg, Germany", ProfileMatch: 92},
-        },
-    }
+func (h *SeekerProfileHandler) buildMiniJobs(db *mongo.Database, userID string) dto.MiniNewJobsResponse {
+	const maxMiniJobs = 3
+	cutoffDate := time.Now().AddDate(0, 0, -14)
+
+	// Step 1: Fetch top match scores for the user
+	matchScoreFilter := bson.M{
+		"auth_user_id": userID,
+	}
+	opts := options.Find().
+		SetSort(bson.D{{Key: "match_score", Value: -1}}).
+		SetLimit(10)
+
+	cursor, err := db.Collection("match_scores").Find(context.TODO(), matchScoreFilter, opts)
+	if err != nil {
+		fmt.Println("Error fetching match scores:", err)
+		return dto.MiniNewJobsResponse{}
+	}
+	defer cursor.Close(context.TODO())
+
+	var topMatches []models.MatchScore
+	if err := cursor.All(context.TODO(), &topMatches); err != nil {
+		fmt.Println("Error decoding match scores:", err)
+		return dto.MiniNewJobsResponse{}
+	}
+
+	// Step 2: Fetch applied job IDs
+	appliedJobIDs, _ := repository.FetchAppliedJobIDs(context.TODO(), db.Collection("selected_job_applications"), userID)
+	appliedMap := make(map[string]bool)
+	for _, id := range appliedJobIDs {
+		appliedMap[id] = true
+	}
+
+	// Step 3: Filter out applied jobs & fetch job data
+	var miniJobs []dto.MiniJob
+	for _, match := range topMatches {
+		if appliedMap[match.JobID] {
+			continue
+		}
+
+		// Fetch job
+		var job models.Job
+		err := db.Collection("jobs").FindOne(context.TODO(), bson.M{
+			"job_id":       match.JobID,
+			"posted_date": bson.M{"$gte": cutoffDate.Format("2006-01-02")},
+		}).Decode(&job)
+		if err != nil {
+			continue
+		}
+
+		miniJobs = append(miniJobs, dto.MiniJob{
+			Title:        job.Title,
+			Company:      job.Company,
+			Location:     job.Location,
+			ProfileMatch: int(match.MatchScore),
+		})
+
+		if len(miniJobs) >= maxMiniJobs {
+			break
+		}
+	}
+
+	return dto.MiniNewJobsResponse{
+		MiniNewJobs: miniJobs,
+	}
 }
+
 
 // Static test summary
 func (h *SeekerProfileHandler) buildMiniTestSummary() dto.MiniTestSummaryResponse {

@@ -6,6 +6,7 @@ import (
 	"RAAS/internal/models"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -17,7 +18,7 @@ func JobRetrievalHandler(c *gin.Context) {
 	db := c.MustGet("db").(*mongo.Database)
 	userID := c.MustGet("userID").(string)
 
-	// Get seeker and skills
+	// Get seeker for skills, etc.
 	seeker, err := repository.GetSeekerData(db, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching seeker data"})
@@ -29,56 +30,112 @@ func JobRetrievalHandler(c *gin.Context) {
 	}
 	skills := seeker.KeySkills
 
-	preferredTitles := repository.CollectPreferredTitles(seeker)
-	if len(preferredTitles) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "No preferred job titles set for user."})
-		return
-	}
-
+	// Get applied job IDs to exclude
 	appliedJobIDs, err := repository.FetchAppliedJobIDs(c, db.Collection("selected_job_applications"), userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching applied job data"})
 		return
 	}
-	if appliedJobIDs == nil {
-		appliedJobIDs = []string{}
+	appliedSet := make(map[string]bool)
+	for _, id := range appliedJobIDs {
+		appliedSet[id] = true
 	}
 
-	// Optional job_language query param
-	jobLanguage := c.Query("job_language")
-
-	// Build job filter (includes last 2 weeks filtering)
-	filter := repository.BuildJobFilter(preferredTitles, appliedJobIDs, jobLanguage)
-
-	// Pagination values
+	// Pagination
 	pagination := c.MustGet("pagination").(gin.H)
 	offset := pagination["offset"].(int)
 	limit := pagination["limit"].(int)
 
-	// Set Mongo FindOptions with sorting by posted_date (newest first)
-	findOpts := options.Find().
-		SetSort(bson.D{{Key: "posted_date", Value: -1}}).
-		SetSkip(int64(offset)).
-		SetLimit(int64(limit))
+	// Step 1: Get all match scores for user, sorted by match_score DESC
+	matchCursor, err := db.Collection("match_scores").
+		Find(c,
+			bson.M{"auth_user_id": userID},
+			options.Find().SetSort(bson.D{{Key: "match_score", Value: -1}}),
+		)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching match scores"})
+		return
+	}
+	defer matchCursor.Close(c)
 
-	cursor, err := db.Collection("jobs").Find(c, filter, findOpts)
+	var scores []models.MatchScore
+	if err := matchCursor.All(c, &scores); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error decoding match scores"})
+		return
+	}
+
+	// Step 2: Filter out applied jobs and collect job IDs in order
+	var matchedJobIDs []string
+	for _, ms := range scores {
+		if !appliedSet[ms.JobID] {
+			matchedJobIDs = append(matchedJobIDs, ms.JobID)
+		}
+	}
+
+	total := len(matchedJobIDs)
+	if total == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"pagination": gin.H{
+				"total":    0,
+				"next":     "",
+				"prev":     "",
+				"current":  1,
+				"per_page": limit,
+			},
+			"jobs": []dto.JobDTO{},
+		})
+		return
+	}
+
+	// Step 3: Paginate the job IDs
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+	pagedJobIDs := matchedJobIDs[offset:end]
+
+	// Step 4: Build filter for jobs
+	filter := bson.M{
+		"job_id": bson.M{"$in": pagedJobIDs},
+		"posted_date": bson.M{
+			"$gte": time.Now().AddDate(0, 0, -14).Format("2006-01-02"),
+		},
+	}
+
+	if lang := c.Query("job_language"); lang != "" {
+		filter["job_language"] = bson.M{"$regex": lang, "$options": "i"}
+	}
+	if title := c.Query("title"); title != "" {
+		filter["title"] = bson.M{"$regex": title, "$options": "i"}
+	}
+
+	jobCursor, err := db.Collection("jobs").Find(c, filter)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error fetching job data"})
 		return
 	}
-	defer cursor.Close(c)
+	defer jobCursor.Close(c)
 
-	var jobs []dto.JobDTO
-	var index uint = 1
-	for cursor.Next(c) {
+	// Build job map to quickly lookup
+	jobMap := make(map[string]models.Job)
+	for jobCursor.Next(c) {
 		var job models.Job
-		if err := cursor.Decode(&job); err != nil {
-			fmt.Println("Error decoding job:", err)
+		if err := jobCursor.Decode(&job); err != nil {
 			continue
 		}
+		jobMap[job.JobID] = job
+	}
 
-		matchScore := repository.GetMatchScoreForJob(c, db, userID, job.JobID)
-		isSelected := repository.IsJobSelected(c, db, userID, job.JobID)
+	// Step 5: Build DTOs in match_score order
+	var jobs []dto.JobDTO
+	var index uint = 1
+	for _, jobID := range pagedJobIDs {
+		job, ok := jobMap[jobID]
+		if !ok {
+			continue
+		}
+		score := repository.GetMatchScoreForJob(c, db, userID, jobID)
+		isSelected := repository.IsJobSelected(c, db, userID, jobID)
 
 		jobs = append(jobs, dto.JobDTO{
 			Source:      "seeker",
@@ -92,7 +149,7 @@ func JobRetrievalHandler(c *gin.Context) {
 			JobType:     job.JobType,
 			Skills:      job.Skills,
 			UserSkills:  skills,
-			MatchScore:  matchScore,
+			MatchScore:  score,
 			Description: job.JobDescription,
 			JobLang:     job.JobLang,
 			JobTitle:    job.JobTitle,
@@ -101,17 +158,10 @@ func JobRetrievalHandler(c *gin.Context) {
 		index++
 	}
 
-	// Count total jobs matching filter
-	totalCount, err := db.Collection("jobs").CountDocuments(c, filter)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error counting job data"})
-		return
-	}
-
-	// Build pagination links
+	// Step 6: Build response
 	nextPage := ""
-	if int64(offset+limit) < totalCount {
-		nextPage = fmt.Sprintf("/api/jobs?offset=%d&limit=%d", offset+limit, limit)
+	if end < total {
+		nextPage = fmt.Sprintf("/api/jobs?offset=%d&limit=%d", end, limit)
 	}
 	prevPage := ""
 	if offset > 0 {
@@ -122,10 +172,9 @@ func JobRetrievalHandler(c *gin.Context) {
 		prevPage = fmt.Sprintf("/api/jobs?offset=%d&limit=%d", prevOffset, limit)
 	}
 
-	// Final JSON response
 	c.JSON(http.StatusOK, gin.H{
 		"pagination": gin.H{
-			"total":    totalCount,
+			"total":    total,
 			"next":     nextPage,
 			"prev":     prevPage,
 			"current":  (offset / limit) + 1,
