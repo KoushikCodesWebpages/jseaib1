@@ -110,10 +110,10 @@ func CalculateProfileCompletion(seeker models.Seeker) (int, []string) {
 	}
 
 	// Work Experiences
-	if len(seeker.WorkExperiences) > 0 {
+	if len(seeker.WorkExperiences) > 0 || len(seeker.PastProjects)>0 {
 		completion += 20
 	} else {
-		missing = append(missing, "work_experiences")
+		missing = append(missing, "work_experiences, past_project")
 	}
 
 	// Certificates
