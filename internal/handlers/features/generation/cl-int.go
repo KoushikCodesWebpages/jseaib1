@@ -32,6 +32,7 @@ func (h *InternalCoverLetterHandler) PostCoverLetter(c *gin.Context) {
 
 	var req struct {
 		JobID string `json:"job_id" binding:"required"`
+		JobLang string `json:"job_language" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing job_id"})
@@ -108,7 +109,7 @@ func (h *InternalCoverLetterHandler) PostCoverLetter(c *gin.Context) {
 			"skills":           job.Skills,
 			"benefits":         "",
 		},
-		"cl_data": map[string]string{"language": "English", "spec": ""},
+		"cl_data": map[string]string{"language": req.JobLang, "spec": ""},
 	}
 
 	// Step 5: Call ML API

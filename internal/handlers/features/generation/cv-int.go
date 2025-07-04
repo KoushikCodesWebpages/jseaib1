@@ -15,7 +15,7 @@ import (
     "go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
-    "go.mongodb.org/mongo-driver/bson/primitive"
+    // "go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type InternalCVHandler struct{}
@@ -36,7 +36,10 @@ func (h *InternalCVHandler) PostCV(c *gin.Context) {
 
     userID := c.MustGet("userID").(string)
 
-    var req struct{ JobID string `json:"job_id" binding:"required"` }
+    var req struct{ 
+                    JobID string `json:"job_id" binding:"required"`
+                    JobLang string `json:"job_language" binding:"required"`
+                }
 
     if err := c.ShouldBindJSON(&req); err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"error": "Missing or invalid job_id"})
@@ -82,73 +85,73 @@ func (h *InternalCVHandler) PostCV(c *gin.Context) {
         educationObjs, _ := repository.GetAcademics(&seeker)
 
     // 1️⃣ Build education strings
-	education := []string{}
-	for _, e := range educationObjs {
-		degree, _ := e["degree"].(string)
-		field, _ := e["field_of_study"].(string)
-		inst, _ := e["institution"].(string)
+	// education := []string{}
+	// for _, e := range educationObjs {
+	// 	degree, _ := e["degree"].(string)
+	// 	field, _ := e["field_of_study"].(string)
+	// 	inst, _ := e["institution"].(string)
 
-		// Handle start_date
-		startStr := "Unknown"
-		if startRaw, ok := e["start_date"].(primitive.DateTime); ok && !startRaw.Time().IsZero() {
-			startStr = startRaw.Time().Format("Jan 2006")
-		}
-		// Handle end_date
-		endStr := "Present"
-		if endRaw, ok := e["end_date"].(primitive.DateTime); ok && !endRaw.Time().IsZero() {
-			endStr = endRaw.Time().Format("Jan 2006")
-		}
+	// 	// Handle start_date
+	// 	startStr := "Unknown"
+	// 	if startRaw, ok := e["start_date"].(primitive.DateTime); ok && !startRaw.Time().IsZero() {
+	// 		startStr = startRaw.Time().Format("Jan 2006")
+	// 	}
+	// 	// Handle end_date
+	// 	endStr := "Present"
+	// 	if endRaw, ok := e["end_date"].(primitive.DateTime); ok && !endRaw.Time().IsZero() {
+	// 		endStr = endRaw.Time().Format("Jan 2006")
+	// 	}
 
-		period := fmt.Sprintf("%s – %s", startStr, endStr)
-		education = append(education, fmt.Sprintf("%s in %s at %s (%s)", degree, field, inst, period))
-	}
+	// 	period := fmt.Sprintf("%s – %s", startStr, endStr)
+	// 	education = append(education, fmt.Sprintf("%s in %s at %s (%s)", degree, field, inst, period))
+	// }
 
 
     // 2️⃣ Extract cert titles
-    certifications := []string{}
-    for _, cert := range certificateObjs {
-        name, _ := cert["certificate_name"].(string)
-        if name != "" {
-            certifications = append(certifications, name)
-        }
-    }
+    // certifications := []string{}
+    // for _, cert := range certificateObjs {
+    //     name, _ := cert["certificate_name"].(string)
+    //     if name != "" {
+    //         certifications = append(certifications, name)
+    //     }
+    // }
 
-    // 3️⃣ Format language proficiency
-    languages := []string{}
-    for _, lang := range languageObjs {
-        langName, _ := lang["language"].(string)
-        proficiency, _ := lang["proficiency"].(string)
-        if langName != "" {
-            languages = append(languages, fmt.Sprintf("%s: %s", langName, proficiency))
-        }
-    }
+    // // 3️⃣ Format language proficiency
+    // languages := []string{}
+    // for _, lang := range languageObjs {
+    //     langName, _ := lang["language"].(string)
+    //     proficiency, _ := lang["proficiency"].(string)
+    //     if langName != "" {
+    //         languages = append(languages, fmt.Sprintf("%s: %s", langName, proficiency))
+    //     }
+    // }
     //  Format experience summary
-    experienceSummaries := []string{}
-    for _, e := range experienceSummaryObjs {
-        // Handle start_date
-        startStr := ""
-        if startVal, ok := e["start_date"].(primitive.DateTime); ok {
-            startStr = startVal.Time().Format("Jan 2006")
-        }
+    // experienceSummaries := []string{}
+    // for _, e := range experienceSummaryObjs {
+    //     // Handle start_date
+    //     startStr := ""
+    //     if startVal, ok := e["start_date"].(primitive.DateTime); ok {
+    //         startStr = startVal.Time().Format("Jan 2006")
+    //     }
 
-        // Handle end_date
-        endStr := "Present"
-        if endVal, ok := e["end_date"].(primitive.DateTime); ok && !endVal.Time().IsZero() {
-            endStr = endVal.Time().Format("Jan 2006")
-        }
+    //     // Handle end_date
+    //     endStr := "Present"
+    //     if endVal, ok := e["end_date"].(primitive.DateTime); ok && !endVal.Time().IsZero() {
+    //         endStr = endVal.Time().Format("Jan 2006")
+    //     }
 
-        // Period string
-        period := fmt.Sprintf("%s – %s", startStr, endStr)
+    //     // Period string
+    //     period := fmt.Sprintf("%s – %s", startStr, endStr)
 
-        // Extract fields
-        position, _ := e["job_title"].(string)
-        company, _ := e["company_name"].(string)
-        description, _ := e["key_responsibilities"].(string)
+    //     // Extract fields
+    //     position, _ := e["job_title"].(string)
+    //     company, _ := e["company_name"].(string)
+    //     description, _ := e["key_responsibilities"].(string)
 
-        // Final summary
-        summary := fmt.Sprintf("%s at %s (%s): %s", position, company, period, description)
-        experienceSummaries = append(experienceSummaries, summary)
-    }
+    //     // Final summary
+    //     summary := fmt.Sprintf("%s at %s (%s): %s", position, company, period, description)
+    //     experienceSummaries = append(experienceSummaries, summary)
+    // }
 
     // 4. Build payload matching your required structure
     payload := map[string]interface{}{
@@ -162,11 +165,11 @@ func (h *InternalCVHandler) PostCV(c *gin.Context) {
             "linkedin":           pInfo.LinkedInProfile,
             "tools":              []string{},           // or populate as needed
             "skills":             seeker.KeySkills,
-            "education":          education,
-            "experience_summary": experienceSummaries,
+            "education":          educationObjs,
+            "experience_summary": experienceSummaryObjs,
             "past_projects":      pastProjects,
-            "certifications":     certifications,
-            "languages":          languages,
+            "certifications":     certificateObjs,
+            "languages":          languageObjs,
         },
         "job_description": map[string]interface{}{
             "job_title":       job.JobTitle,
@@ -181,36 +184,40 @@ func (h *InternalCVHandler) PostCV(c *gin.Context) {
             "skills":           job.Skills,
             "benefits":         "", // optional
         },
-        "cv_data": map[string]string{"language": "English", "spec": ""},
+        "cv_data": map[string]string{"language": req.JobLang, "spec": ""},
     }
 
     // 5. Call ML CV API
-    cvResp, err := CallCVAPI(payload)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("CV API failed: %v", err)})
+        cvResp, err := CallCVAPI(payload)
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("CV API failed: %v", err)})
+            return
+        }
+
+        if userID == "" || req.JobID == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user or job ID"})
+        return
+        }
+        // 6. Save generated CV JSON
+        _, err = cvColl.InsertOne(c, bson.M{
+            "auth_user_id": userID,
+            "job_id":       req.JobID,
+            "cv_data":      cvResp,
+        })
+        if err != nil {
+        log.Printf("InsertOne error: %v", err)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save CV data"})
         return
     }
 
-    if userID == "" || req.JobID == "" {
-    c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user or job ID"})
-    return
-    }
-    // 6. Save generated CV JSON
-    _, err = cvColl.InsertOne(c, bson.M{
-        "auth_user_id": userID,
-        "job_id":       req.JobID,
-        "cv_data":      cvResp,
-    })
-    if err != nil {
-    log.Printf("InsertOne error: %v", err)
-    c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save CV data"})
-    return
-}
+        c.JSON(http.StatusOK, gin.H{
+            "job_id":  req.JobID,
+            "cv_data": cvResp,
+        })
 
-    c.JSON(http.StatusOK, gin.H{
-        "job_id":  req.JobID,
-        "cv_data": cvResp,
-    })
+    // c.JSON(http.StatusOK,gin.H{
+    //     "payload":payload,
+    // })
 }
 
 // GET /b1/generate-cv?job_id=...
