@@ -36,6 +36,7 @@ func (h *ExternalJobCVNCLGenerator) PostExternalCVNCL(c *gin.Context) {
         JobTitle       string `json:"job_title" binding:"required"`
         JobLink        string `json:"link" binding:"required"`
         JobDescription string `json:"description" binding:"required"`
+        JobLang        string `json:"job_language" binding:"required"`
     }
     if err := c.ShouldBindJSON(&req); err != nil {
         c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
@@ -188,7 +189,7 @@ func (h *ExternalJobCVNCLGenerator) PostExternalCVNCL(c *gin.Context) {
     cvPayload := map[string]interface{}{
         "user_details":    userDetails,
         "job_description": jobDesc,
-        "cv_data":         map[string]string{"language": "English", "spec": ""},
+        "cv_data":         map[string]string{"language": req.JobLang, "spec": ""},
     }
     cvResp, cvErr := CallCVAPI(cvPayload)
     if cvErr != nil {
@@ -199,7 +200,7 @@ func (h *ExternalJobCVNCLGenerator) PostExternalCVNCL(c *gin.Context) {
 	clPayload := map[string]interface{}{
         "user_details":    userDetails,
         "job_description": jobDesc,
-        "cl_data":         map[string]string{"language": "English", "spec": ""},
+        "cl_data":         map[string]string{"language": req.JobLang, "spec": ""},
     }
     clResp, clErr := CallCoverLetterAPI(clPayload)
     if clErr != nil {
