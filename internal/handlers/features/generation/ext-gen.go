@@ -163,13 +163,14 @@ func (h *ExternalJobCVNCLGenerator) PostExternalCVNCL(c *gin.Context) {
             "email":              authUser.Email,
             "portfolio":          /*pInfo.ExternalLinks*/"",
             "linkedin":           pInfo.LinkedInProfile,
-            "tools":              []string{},          
+            "tools":              []string{},
+                      
             "skills":             seeker.KeySkills,
-            "education":          education,
-            "experience_summary": experienceSummaries,
+            "education":          educationObjs,
+            "experience_summary": experienceSummaryObjs,
             "past_projects":      pastProjects,
-            "certifications":     certifications,
-            "languages":          languages,	
+            "certifications":     certificateObjs,
+            "languages":          languageObjs,	
     }
 
 	jobDesc := map[string]interface{}{
