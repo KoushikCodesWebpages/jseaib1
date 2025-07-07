@@ -97,6 +97,7 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 	payRoutes := r.Group("/b1/payment", auth)
 	{
 		payRoutes.POST("/checkout", paymentHandler.CreateCheckout)
+		payRoutes.GET("/billing/portal", paymentHandler.CustomerPortal)
 	}
 	r.POST("/b1/payment/webhook", paymentHandler.Webhook)
 
@@ -105,49 +106,6 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 	matchHandler := jobs.NewMatchScoreHandler()
 	r.Group("/b1/matchscores", auth).
     GET("", matchHandler.GetMatchScores)
-
-
-	// jobDataHandler := features.NewJobDataHandler()
-	// jobMetaRoutes := r.Group("/api/job-data")
-	// jobMetaRoutes.Use(middleware.AuthMiddleware())
-	// {
-	// 	jobMetaRoutes.GET("", jobDataHandler.GetAllJobs)
-	// }
-
-
-	// selectedJobsHandler := features.NewSelectedJobsHandler(client)
-	// selectedJobsRoutes := r.Group("/selected-jobs")
-	// selectedJobsRoutes.Use(middleware.AuthMiddleware())
-	// {
-	// 	selectedJobsRoutes.POST("", selectedJobsHandler.PostSelectedJob)
-	// 	selectedJobsRoutes.GET("", selectedJobsHandler.GetSelectedJobs)
-	// 	selectedJobsRoutes.PUT(":id", selectedJobsHandler.UpdateSelectedJob)
-	// 	selectedJobsRoutes.DELETE(":id", selectedJobsHandler.DeleteSelectedJob)
-	// }
-
-	// matchScoreHandler := features.MatchScoreHandler{Client: client}
-	// // Define the route group for match scores
-	// matchScoreRoutes := r.Group("/matchscores")
-	// matchScoreRoutes.Use(middleware.AuthMiddleware()) // If you want to secure it with authentication
-	// {
-	// 	// Route to get all match scores
-	// 	matchScoreRoutes.GET("", matchScoreHandler.GetAllMatchScores)
-	// }
-
-	// CVHandler := features.NewCVDownloadHandler(client) // assuming constructor exists like NewCVHandler(client)
-
-	// downloadCVRoutes := r.Group("/download-cv")
-	// downloadCVRoutes.Use(middleware.AuthMiddleware())
-	// {
-	// 	downloadCVRoutes.POST("", CVHandler.DownloadCV)
-	// }
-
-	// cvMetaHandler := features.NewCVDownloadHandler(client)
-	// cvMetaRoutes := r.Group("/get-cv")
-	// cvMetaRoutes.Use(middleware.AuthMiddleware())
-	// {
-	// 	cvRoutes.GET("", cvMetaHandler.GetCVMetadata)
-	// }
 
 
 }

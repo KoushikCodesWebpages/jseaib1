@@ -10,13 +10,13 @@ import (
     "RAAS/core/config"
 
     "github.com/gin-gonic/gin"
-    "github.com/stripe/stripe-go/v82"
-    session "github.com/stripe/stripe-go/v82/checkout/session"
+    stripe "github.com/stripe/stripe-go/v82"
+    checkout "github.com/stripe/stripe-go/v82/checkout/session"
+    billingportal "github.com/stripe/stripe-go/v82/billingportal/session"
     "github.com/stripe/stripe-go/v82/webhook"
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/mongo"
 )
-
 // PlanConfig holds plan details and usage limits.
 type PlanConfig struct {
     Tier              string
@@ -74,7 +74,7 @@ func (h *PaymentHandler) CreateCheckout(c *gin.Context) {
         }
     }
 
-    sess, err := session.New(&stripe.CheckoutSessionParams{
+    sess, err := checkout.New(&stripe.CheckoutSessionParams{
         Mode:              stripe.String(string(stripe.CheckoutSessionModeSubscription)),
         ClientReferenceID: stripe.String(authID),
         SubscriptionData: &stripe.CheckoutSessionSubscriptionDataParams{
@@ -93,6 +93,35 @@ func (h *PaymentHandler) CreateCheckout(c *gin.Context) {
     }
 
     c.JSON(http.StatusOK, gin.H{"url": sess.URL})
+}
+
+// CustomerPortal creates a Stripe billing portal session for a logged-in user.
+func (h *PaymentHandler) CustomerPortal(c *gin.Context) {
+    authID := c.MustGet("userID").(string)
+    db := c.MustGet("db").(*mongo.Database)
+    col := db.Collection("seekers")
+
+    var seeker struct {
+        StripeCustomerID string `bson:"stripe_customer_id"`
+    }
+    if err := col.FindOne(c, bson.M{"auth_user_id": authID}).Decode(&seeker); err != nil || seeker.StripeCustomerID == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"issue": "Stripe customer not found"})
+        return
+    }
+
+    // Use billingportal/session to create portal
+    params := &stripe.BillingPortalSessionParams{
+        Customer:  stripe.String(seeker.StripeCustomerID),
+        ReturnURL: stripe.String(config.Cfg.Project.SuccessUrl),
+    }
+
+    psession, err := billingportal.New(params)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{"url": psession.URL})
 }
 
 // Webhook processes Stripe events and updates seeker info.

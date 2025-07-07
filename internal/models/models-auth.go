@@ -63,6 +63,7 @@ type Seeker struct {
 	TotalApplications           int                `json:"total_applications" bson:"total_applications"`
 	WeeklyAppliedJobs           int                `json:"weekly_applications_count" bson:"weekly_applications_count"`
 	TopJobs                     int                `json:"top_jobs_count" bson:"top_jobs_count"`
+	
 	StripeCustomerID			string				`json:"stripe_customer_id" bson:"stripe_customer_id"`
 	SubscriptionTier          	string    			`json:"subscription_tier" bson:"subscription_tier"`
 	SubscriptionPeriod        	string    			`json:"subscription_period" bson:"subscription_period"` // e.g., "monthly", "quarterly"
