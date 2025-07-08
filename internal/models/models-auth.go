@@ -17,9 +17,12 @@ type AuthUser struct {
 	Role                 	string     `json:"role" bson:"role"`
 	EmailVerified        	bool       `json:"email_verified" bson:"email_verified"`
 	Provider             	string     `json:"provider" bson:"provider,omitempty"`
-	ResetTokenExpiry     	*time.Time `json:"reset_token_expiry" bson:"reset_token_expiry"`
-	IsActive             	bool       `json:"is_active" bson:"is_active"`
+
 	VerificationToken    	string     `json:"verification_token" bson:"verification_token"`
+	ResetTokenExpiry     	*time.Time `json:"reset_token_expiry" bson:"reset_token_expiry"`
+
+	IsActive             	bool       `json:"is_active" bson:"is_active"`
+	
 	CreatedBy            	string     `json:"created_by" bson:"created_by"` // Changed to string for MongoDB UUID storage
 	UpdatedBy            	string     `json:"updated_by" bson:"updated_by"`
 	CreatedAt 				*time.Time `json:"created_at" bson:"created_at"` // Changed to string for MongoDB UUID storage

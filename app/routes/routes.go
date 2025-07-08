@@ -16,6 +16,7 @@ import (
 
 func SetupRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config) {
 	// CORS
+
 	origins := strings.Split(cfg.Project.CORSAllowedOrigins, ",")
 	for i, origin := range origins {
 		origins[i] = strings.TrimSpace(origin)
@@ -39,6 +40,10 @@ func SetupRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config) {
 	r.GET("/", func(c *gin.Context) {
 		c.File("./public/dist/index.html")
 	})
+	r.GET("/reset-password", func(c *gin.Context) {
+		c.File("./app/templates/resetpassword.html")
+	})
+
 	r.NoRoute(func(c *gin.Context) {
 		c.File("./app/templates/noroutes.html")
 	})

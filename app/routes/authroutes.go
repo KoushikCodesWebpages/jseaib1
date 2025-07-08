@@ -20,29 +20,21 @@ func SetupAuthRoutes(r *gin.Engine, cfg *config.Config) {
 	signupLimiter := middleware.RateLimiterMiddleware(5, time.Minute)
 	loginLimiter := middleware.RateLimiterMiddleware(10, time.Minute)
 	// forgotPassLimiter := middleware.RateLimiterMiddleware(3, time.Minute)
-	// resetPassLimiter := middleware.RateLimiterMiddleware(3, time.Minute)
+	resetPassLimiter := middleware.RateLimiterMiddleware(3, time.Hour* 24)
 	verifyEmailLimiter := middleware.RateLimiterMiddleware(10, time.Minute)
-	// googleLoginLimiter := middleware.RateLimiterMiddleware(10, time.Minute)
-	// googleCallbackLimiter := middleware.RateLimiterMiddleware(20, time.Minute)
 	store := cookie.NewStore([]byte("your-secret-key"))
     r.Use(sessions.Sessions("session", store))
 
-	authGroup := r.Group("/b1/auth")
+	authRoutes := r.Group("/b1/auth")
 	{
 		// Standard auth routes (rate-limited where necessary)
 
- 		// authGroup.GET("/google/login", googleLoginLimiter, oauth.GoogleLoginHandler)
-        // authGroup.GET("/google/callback", googleCallbackLimiter, oauth.GoogleCallbackHandler)
-
-        authGroup.POST("/signup", signupLimiter, auth.SeekerSignUp)
-        authGroup.GET("/verify-email", verifyEmailLimiter, auth.VerifyEmail)
-        authGroup.POST("/login", loginLimiter, auth.SeekerLogin)
-        authGroup.POST("/admin/refresh-token", auth.AdminRefreshToken)
-
+        authRoutes.POST("/signup", signupLimiter, auth.SeekerSignUp)
+        authRoutes.GET("/verify-email", verifyEmailLimiter, auth.VerifyEmail)
+        authRoutes.POST("/login", loginLimiter, auth.SeekerLogin)
+        authRoutes.POST("/admin/refresh-token", auth.AdminRefreshToken)
+		authRoutes.POST("/request-password-reset", auth.RequestPasswordResetHandler, resetPassLimiter)
+		authRoutes.POST("/reset-password", auth.ResetPasswordHandler, resetPassLimiter)
 		
-		// authGroup.POST("/forgot-password", forgotPassLimiter, auth.ForgotPasswordHandler)
-		// authGroup.POST("/admin-reset-token", auth.SystemInitiatedResetTokenHandler) // No limiter
-		// authGroup.GET("/reset-password", auth.ResetPasswordPage)                     // Optional
-		// authGroup.POST("/reset-password", resetPassLimiter, auth.ResetPasswordHandler)
 	}
 }
