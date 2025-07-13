@@ -3,7 +3,7 @@ package models
 import (
 
 	"context"
-	
+	"time"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -73,6 +73,15 @@ func CreateJobIndexes(collection *mongo.Collection) error {
 		jobIdIndex, jobTypeIndex, selectedCountIndex, jobTitleIndex, jobLangIndex ,postedDateIndex,
 	})
 	return err
+}
+
+type ExternalJob struct {
+    JobID         string    `bson:"job_id" json:"job_id"`
+    Title         string    `bson:"title" json:"title"`
+    Company       string    `bson:"company" json:"company"`
+    Description   string    `bson:"description" json:"description"`
+    JobLanguage   string    `bson:"job_language" json:"job_language"`
+    PostedDate    time.Time `bson:"posted_date" json:"posted_date"`
 }
 
 

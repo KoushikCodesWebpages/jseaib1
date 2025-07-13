@@ -31,23 +31,22 @@ type ApplicationTrackerResponse struct {
 	Source       string 	`json:"source"`
     SelectedDate time.Time  `json:"selected_date"`
 }
-
-
 func (h *ApplicationTrackerHandler) GetApplicationTracker(c *gin.Context) {
     db := c.MustGet("db").(*mongo.Database)
     userID := c.MustGet("userID").(string)
 
     selColl := db.Collection("selected_job_applications")
-    jobColl := db.Collection("jobs")
     seekerColl := db.Collection("seekers")
     matchScoreColl := db.Collection("match_scores")
+    internalJobColl := db.Collection("jobs")
+    externalJobColl := db.Collection("external_jobs")
 
-    // 1️⃣ Find applications where all three generation flags are true
+    // 1️⃣ Fetch selections with all generated flags true
     filter := bson.M{
-        "auth_user_id":            userID,
-        "cv_generated":            true,
-        "cover_letter_generated":  true,
-        "view_link":               true,
+        "auth_user_id":           userID,
+        "cv_generated":           true,
+        "cover_letter_generated": true,
+        "view_link":              true,
     }
     cursor, err := selColl.Find(context.TODO(), filter)
     if err != nil {
@@ -62,51 +61,81 @@ func (h *ApplicationTrackerHandler) GetApplicationTracker(c *gin.Context) {
         return
     }
 
-    // 2️⃣ Update status to "applied" if not already
-    for _, app := range apps {
-        if app.Status != "applied" {
-            _, _ = selColl.UpdateOne(context.TODO(), bson.M{
-                "auth_user_id": userID,
-                "job_id":       app.JobID,
-            }, bson.M{"$set": bson.M{"status": "applied"}})
-            app.Status = "applied" // Keep the struct in sync
+    // 2️⃣ Update status to "applied" and reflect change in slice
+    for idx := range apps {
+        if apps[idx].Status != "applied" {
+            _, _ = selColl.UpdateOne(context.TODO(),
+                bson.M{"auth_user_id": userID, "job_id": apps[idx].JobID},
+                bson.M{"$set": bson.M{"status": "applied"}},
+            )
+            apps[idx].Status = "applied"
         }
     }
 
-    // 3️⃣ Load seeker key skills once
+    // 3️⃣ Load seeker skills
     var seeker models.Seeker
     _ = seekerColl.FindOne(context.TODO(), bson.M{"auth_user_id": userID}).Decode(&seeker)
 
     // 4️⃣ Build response
-    var resp []ApplicationTrackerResponse
+    resp := make([]ApplicationTrackerResponse, 0, len(apps))
     for _, app := range apps {
-        var job models.Job
-        if err := jobColl.FindOne(context.TODO(), bson.M{"job_id": app.JobID}).Decode(&job); err != nil {
-            continue
+        var title, company, location, jobTitle, jobDesc, skills string
+
+        if app.Source == "external" {
+            var extJob struct {
+                Title       string `bson:"title"`
+                Company     string `bson:"company"`
+                Description string `bson:"description"`
+                Location    string `bson:"location,omitempty"`
+                JobTitle    string `bson:"job_title,omitempty"`
+                Skills      string `bson:"skills,omitempty"`
+            }
+            if err := externalJobColl.FindOne(context.TODO(), bson.M{"job_id": app.JobID}).Decode(&extJob); err != nil {
+                continue
+            }
+            title = extJob.Title
+            company = extJob.Company
+            jobDesc = extJob.Description
+            location = extJob.Location
+            jobTitle = extJob.JobTitle
+            skills = extJob.Skills
+        } else {
+            var intJob struct {
+                Title          string `bson:"title"`
+                Company        string `bson:"company"`
+                Location       string `bson:"location"`
+                JobTitle       string `bson:"job_title"`
+                JobDescription string `bson:"job_description"`
+                Skills         string `bson:"skills"`
+            }
+            if err := internalJobColl.FindOne(context.TODO(), bson.M{"job_id": app.JobID}).Decode(&intJob); err != nil {
+                continue
+            }
+            title = intJob.Title
+            company = intJob.Company
+            jobDesc = intJob.JobDescription
+            location = intJob.Location
+            jobTitle = intJob.JobTitle
+            skills = intJob.Skills
         }
 
         var match struct{ MatchScore float64 `bson:"match_score"` }
-        _ = matchScoreColl.FindOne(context.TODO(), bson.M{
-            "auth_user_id": userID,
-            "job_id":       app.JobID,
-        }).Decode(&match)
+        _ = matchScoreColl.FindOne(context.TODO(),
+            bson.M{"auth_user_id": userID, "job_id": app.JobID}).Decode(&match)
 
-		if app.Status=="pending"{
-			app.Status="applied"
-		}
         resp = append(resp, ApplicationTrackerResponse{
-            JobID:      app.JobID,
-            Title:      job.Title,
-            Company:    job.Company,
-            Location:   job.Location,
-            JobTitle:   job.JobTitle,
-            JobDesc:    job.JobDescription,
-            Skills:     job.Skills,
-            KeySkills:  seeker.KeySkills,
-            MatchScore: match.MatchScore,
-            Status:     app.Status,  // ← using dynamic status from DB
-            Source:     app.Source,
-            SelectedDate:app.SelectedDate,
+            JobID:        app.JobID,
+            Title:        title,
+            Company:      company,
+            Location:     location,
+            JobTitle:     jobTitle,
+            JobDesc:      jobDesc,
+            Skills:       skills,
+            KeySkills:    seeker.KeySkills,
+            MatchScore:   match.MatchScore,
+            Status:       app.Status,
+            Source:       app.Source,
+            SelectedDate: app.SelectedDate,
         })
     }
 

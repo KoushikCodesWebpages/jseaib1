@@ -7,12 +7,12 @@ import (
 
     "fmt"
     "net/http"
+    "time"
 
     "github.com/gin-gonic/gin"
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-    // "go.mongodb.org/mongo-driver/bson/primitive"
+    "go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type ExternalJobCVNCLGenerator struct{}
@@ -28,6 +28,7 @@ func (h *ExternalJobCVNCLGenerator) PostExternalCVNCL(c *gin.Context) {
     selColl := db.Collection("selected_job_applications")
     seekerColl := db.Collection("seekers")
     authUserColl := db.Collection("auth_users")
+    extJobColl := db.Collection("external_jobs")
 
     userID := c.MustGet("userID").(string)
 
@@ -92,72 +93,6 @@ func (h *ExternalJobCVNCLGenerator) PostExternalCVNCL(c *gin.Context) {
         pastProjects, _ := repository.GetPastProjects(&seeker)
         educationObjs, _ := repository.GetAcademics(&seeker)
 
-    // 1️⃣ Build education strings
-	// education := []string{}
-	// for _, e := range educationObjs {
-	// 	degree, _ := e["degree"].(string)
-	// 	field, _ := e["field_of_study"].(string)
-	// 	inst, _ := e["institution"].(string)
-
-	// 	// Handle start_date
-	// 	startStr := "Unknown"
-	// 	if startRaw, ok := e["start_date"].(primitive.DateTime); ok && !startRaw.Time().IsZero() {
-	// 		startStr = startRaw.Time().Format("Jan 2006")
-	// 	}
-	// 	// Handle end_date
-	// 	endStr := "Present"
-	// 	if endRaw, ok := e["end_date"].(primitive.DateTime); ok && !endRaw.Time().IsZero() {
-	// 		endStr = endRaw.Time().Format("Jan 2006")
-	// 	}
-
-	// 	period := fmt.Sprintf("%s – %s", startStr, endStr)
-	// 	education = append(education, fmt.Sprintf("%s in %s at %s (%s)", degree, field, inst, period))
-	// }
-
-
-    // 2️⃣ Extract cert titles
-    // certifications := []string{}
-    // for _, cert := range certificateObjs {
-    //     name, _ := cert["certificate_name"].(string)
-    //     if name != "" {
-    //         certifications = append(certifications, name)
-    //     }
-    // }
-
-    // 3️⃣ Format language proficiency
-    // languages := []string{}
-    // for _, lang := range languageObjs {
-    //     langName, _ := lang["language"].(string)
-    //     proficiency, _ := lang["proficiency"].(string)
-    //     if langName != "" {
-    //         languages = append(languages, fmt.Sprintf("%s: %s", langName, proficiency))
-    //     }
-    // }
-    // //  Format experience summary
-    // experienceSummaries := []string{}
-	// for _, e := range experienceSummaryObjs {
-	// 	// Handle start_date
-	// 	startStr := "Unknown"
-	// 	if startRaw, ok := e["start_date"].(primitive.DateTime); ok && !startRaw.Time().IsZero() {
-	// 		startStr = startRaw.Time().Format("Jan 2006")
-	// 	}
-
-	// 	// Handle end_date
-	// 	endStr := "Present"
-	// 	if endRaw, ok := e["end_date"].(primitive.DateTime); ok && !endRaw.Time().IsZero() {
-	// 		endStr = endRaw.Time().Format("Jan 2006")
-	// 	}
-
-	// 	// Extract other fields
-	// 	position, _ := e["job_title"].(string)
-	// 	company, _ := e["company_name"].(string)
-	// 	description, _ := e["key_responsibilities"].(string)
-
-	// 	// Assemble summary
-	// 	summary := fmt.Sprintf("%s at %s (%s – %s): %s", position, company, startStr, endStr, description)
-	// 	experienceSummaries = append(experienceSummaries, summary)
-	// }
-
 	// Shared user details
     userDetails := map[string]interface{}{
 			"name":               fmt.Sprintf("%s %s", pInfo.FirstName, *pInfo.SecondName),
@@ -221,7 +156,24 @@ func (h *ExternalJobCVNCLGenerator) PostExternalCVNCL(c *gin.Context) {
 
 	// limit decrement
     seekerColl.UpdateOne(c, bson.M{"auth_user_id":userID}, bson.M{"$inc": bson.M{"daily_generatable_coverletter": -1}})
-
+     // Step 6: Upsert into external_jobs model
+    now := time.Now()
+    filterJob := bson.M{"job_id": req.JobID}
+    updateJob := bson.M{
+        "$setOnInsert": bson.M{
+            "job_id":       req.JobID,
+            "title":        req.JobTitle,
+            "company":      req.Company,
+            "description":  req.JobDescription,
+            "job_language": req.JobLang,
+            "posted_date":  now,
+        },
+    }
+    opts := options.Update().SetUpsert(true)
+    if _, err := extJobColl.UpdateOne(c, filterJob, updateJob, opts); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save external job"})
+        return
+    }
     // Step 6: response
     c.JSON(http.StatusOK, gin.H{
 		"job_id": req.JobID,
