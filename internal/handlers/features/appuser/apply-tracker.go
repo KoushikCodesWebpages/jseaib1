@@ -171,3 +171,44 @@ func (h *ApplicationTrackerHandler) UpdateApplicationStatus(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Status updated", "status": req.Status})
 }
+
+func (h *ApplicationTrackerHandler) GetCVAndCL(c *gin.Context) {
+    db := c.MustGet("db").(*mongo.Database)
+    userID := c.MustGet("userID").(string)
+
+    var req struct {
+        JobID string `json:"job_id" binding:"required"`
+    }
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Missing job_id"})
+        return
+    }
+
+    cvColl := db.Collection("cv")
+    clColl := db.Collection("cover_letters")
+
+    // Fetch both documents in parallel
+    var (
+        cvDoc models.CVData
+        clDoc models.CoverLetterData
+        cvErr = cvColl.FindOne(c, bson.M{"auth_user_id": userID, "job_id": req.JobID}).Decode(&cvDoc)
+        clErr = clColl.FindOne(c, bson.M{"auth_user_id": userID, "job_id": req.JobID}).Decode(&clDoc)
+    )
+
+    if cvErr != nil || clErr != nil {
+        c.JSON(http.StatusNotFound, gin.H{
+            "error": "CV or Cover Letter not found",
+            "cv_error": cvErr.Error(),
+            "cl_error": clErr.Error(),
+        })
+        return
+    }
+
+    // Return both payload and formats
+    c.JSON(http.StatusOK, gin.H{
+        "cv_data":   cvDoc.CVData,
+        "cv_format": cvDoc.CvFormat,
+        "cl_data":   clDoc.CLData,
+        "cl_format": clDoc.ClFormat,
+    })
+}
