@@ -63,7 +63,7 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 	r.Group("/b1/api/application-tracker",auth,paginate).
 	GET("", applicationTrackerHandler.GetApplicationTracker).
 	PUT("/:job_id/status", applicationTrackerHandler.UpdateApplicationStatus).
-	POST("/download-all/:job_id", applicationTrackerHandler.GetCVAndCL)
+	GET("/download-all/:job_id", applicationTrackerHandler.GetCVAndCL)
 
 	r.GET("/b1/test/academics/dates", handlers.TestAcademicDatesHandler)
 
