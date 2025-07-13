@@ -109,7 +109,6 @@ func CreateSelectedJobApplicationIndexes(collection *mongo.Collection) error {
 type SavedJob struct {
 	ID                    primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	AuthUserID            string             `bson:"auth_user_id" json:"auth_user_id"`
-	Source                string             `bson:"source" json:"source"`
 	JobID                 string             `bson:"job_id" json:"job_id"`
 	// SavedDate          time.Time          `bson:"savedDate" json:"selected_date"`
 }

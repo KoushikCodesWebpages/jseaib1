@@ -35,10 +35,11 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 	dashBoardRoute.GET("", seekerProfileHandler.GetDashboard)
 
 
-	// savedJobsHandler := appuser.NewSavedJobsHandler()
-	// r.Group("/b1/saved-jobs", auth, paginate).
-	// 	POST("", savedJobsHandler.SaveJob).
-	// 	GET("", savedJobsHandler.GetSavedJobs)
+	savedJobsHandler := appuser.NewSavedJobsHandler()
+	r.Group("/b1/saved-jobs", auth, paginate).
+		POST("", savedJobsHandler.SaveJob).
+		GET("", savedJobsHandler.GetSavedJobs).
+		DELETE("/:job_id",savedJobsHandler.DeleteSavedJob)
 
 	selectedJobsHandler := appuser.NewSelectedJobHandler()
 	r.Group("/b1/api/selected-jobs", auth, paginate).
