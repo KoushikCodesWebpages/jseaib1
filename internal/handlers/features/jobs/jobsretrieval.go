@@ -187,7 +187,7 @@ func JobRetrievalHandler(c *gin.Context) {
 	// Step 6: Build pagination
 	nextPage := ""
 	if end < total {
-		nextPage = fmt.Sprintf("/api/jobs?offset=%d&limit=%d", end, limit)
+		nextPage = fmt.Sprintf("/b1/api/jobs?offset=%d&limit=%d", end, limit)
 	}
 	prevPage := ""
 	if offset > 0 {
@@ -195,7 +195,7 @@ func JobRetrievalHandler(c *gin.Context) {
 		if prevOffset < 0 {
 			prevOffset = 0
 		}
-		prevPage = fmt.Sprintf("/api/jobs?offset=%d&limit=%d", prevOffset, limit)
+		prevPage = fmt.Sprintf("/b1/api/jobs?offset=%d&limit=%d", prevOffset, limit)
 	}
 
 	c.JSON(http.StatusOK, gin.H{

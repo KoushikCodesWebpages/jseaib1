@@ -1,14 +1,19 @@
 package appuser
 
 import (
+    "RAAS/internal/models"
+
 	"context"
 	"net/http"
     "time"
-	"RAAS/internal/models"
+    "fmt"
+    "strconv"
+
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+    "go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type ApplicationTrackerHandler struct{}
@@ -31,9 +36,21 @@ type ApplicationTrackerResponse struct {
 	Source       string 	`json:"source"`
     SelectedDate time.Time  `json:"selected_date"`
 }
+
 func (h *ApplicationTrackerHandler) GetApplicationTracker(c *gin.Context) {
     db := c.MustGet("db").(*mongo.Database)
     userID := c.MustGet("userID").(string)
+
+    // 1️⃣ Parse pagination
+    page := 1
+    size := 10
+    if p, err := strconv.Atoi(c.DefaultQuery("page", "1")); err == nil && p > 0 {
+        page = p
+    }
+    if s, err := strconv.Atoi(c.DefaultQuery("size", "10")); err == nil && s > 0 {
+        size = s
+    }
+    skip := (page - 1) * size
 
     selColl := db.Collection("selected_job_applications")
     seekerColl := db.Collection("seekers")
@@ -41,14 +58,27 @@ func (h *ApplicationTrackerHandler) GetApplicationTracker(c *gin.Context) {
     internalJobColl := db.Collection("jobs")
     externalJobColl := db.Collection("external_jobs")
 
-    // 1️⃣ Fetch selections with all generated flags true
+    // 2️⃣ Count total matching docs (excluding deleted)
     filter := bson.M{
         "auth_user_id":           userID,
         "cv_generated":           true,
         "cover_letter_generated": true,
         "view_link":              true,
+        "status":                 bson.M{"$ne": "deleted"},
     }
-    cursor, err := selColl.Find(context.TODO(), filter)
+    total, err := selColl.CountDocuments(context.TODO(), filter)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count applications"})
+        return
+    }
+
+    // 3️⃣ Fetch paginated docs
+    cursor, err := selColl.Find(
+        context.TODO(), filter,
+        options.Find().SetSort(bson.D{{"selected_date", -1}}),
+        options.Find().SetSkip(int64(skip)),
+        options.Find().SetLimit(int64(size)),
+    )
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch applications"})
         return
@@ -57,13 +87,13 @@ func (h *ApplicationTrackerHandler) GetApplicationTracker(c *gin.Context) {
 
     var apps []models.SelectedJobApplication
     if err := cursor.All(context.TODO(), &apps); err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode application data"})
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode applications"})
         return
     }
 
-    // 2️⃣ Update status to "applied" and reflect change in slice
+    // 4️⃣ Update only "pending" to "applied"
     for idx := range apps {
-        if apps[idx].Status != "applied" {
+        if apps[idx].Status == "pending" {
             _, _ = selColl.UpdateOne(context.TODO(),
                 bson.M{"auth_user_id": userID, "job_id": apps[idx].JobID},
                 bson.M{"$set": bson.M{"status": "applied"}},
@@ -72,51 +102,33 @@ func (h *ApplicationTrackerHandler) GetApplicationTracker(c *gin.Context) {
         }
     }
 
-    // 3️⃣ Load seeker skills
+    // 5️⃣ Load key skills once
     var seeker models.Seeker
     _ = seekerColl.FindOne(context.TODO(), bson.M{"auth_user_id": userID}).Decode(&seeker)
 
-    // 4️⃣ Build response
+    // 6️⃣ Build responses
     resp := make([]ApplicationTrackerResponse, 0, len(apps))
     for _, app := range apps {
         var title, company, location, jobTitle, jobDesc, skills string
 
         if app.Source == "external" {
-            var extJob struct {
-                Title       string `bson:"title"`
-                Company     string `bson:"company"`
-                Description string `bson:"description"`
-                Location    string `bson:"location,omitempty"`
-                JobTitle    string `bson:"job_title,omitempty"`
-                Skills      string `bson:"skills,omitempty"`
+            var ext struct {
+                Title, Company, Description, Location, JobTitle, Skills string
             }
-            if err := externalJobColl.FindOne(context.TODO(), bson.M{"job_id": app.JobID}).Decode(&extJob); err != nil {
+            if err := externalJobColl.FindOne(context.TODO(), bson.M{"job_id": app.JobID}).Decode(&ext); err != nil {
                 continue
             }
-            title = extJob.Title
-            company = extJob.Company
-            jobDesc = extJob.Description
-            location = extJob.Location
-            jobTitle = extJob.JobTitle
-            skills = extJob.Skills
+            title, company, jobDesc, location, jobTitle, skills =
+                ext.Title, ext.Company, ext.Description, ext.Location, ext.JobTitle, ext.Skills
         } else {
             var intJob struct {
-                Title          string `bson:"title"`
-                Company        string `bson:"company"`
-                Location       string `bson:"location"`
-                JobTitle       string `bson:"job_title"`
-                JobDescription string `bson:"job_description"`
-                Skills         string `bson:"skills"`
+                Title, Company, Location, JobTitle, JobDescription, Skills string
             }
             if err := internalJobColl.FindOne(context.TODO(), bson.M{"job_id": app.JobID}).Decode(&intJob); err != nil {
                 continue
             }
-            title = intJob.Title
-            company = intJob.Company
-            jobDesc = intJob.JobDescription
-            location = intJob.Location
-            jobTitle = intJob.JobTitle
-            skills = intJob.Skills
+            title, company, jobDesc, location, jobTitle, skills =
+                intJob.Title, intJob.Company, intJob.JobDescription, intJob.Location, intJob.JobTitle, intJob.Skills
         }
 
         var match struct{ MatchScore float64 `bson:"match_score"` }
@@ -133,18 +145,38 @@ func (h *ApplicationTrackerHandler) GetApplicationTracker(c *gin.Context) {
             Skills:       skills,
             KeySkills:    seeker.KeySkills,
             MatchScore:   match.MatchScore,
-            Status:       app.Status,
+            Status:       apps[0].Status,
             Source:       app.Source,
             SelectedDate: app.SelectedDate,
         })
     }
 
-    c.JSON(http.StatusOK, resp)
+    // 7️⃣ Build pagination metadata
+    totalPages := (int(total) + size - 1) / size
+    nextPage, prevPage := "", ""
+    if page < totalPages {
+        nextPage = fmt.Sprintf("?page=%d&size=%d", page+1, size)
+    }
+    if page > 1 {
+        prevPage = fmt.Sprintf("?page=%d&size=%d", page-1, size)
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "pagination": gin.H{
+            "total":     total,
+            "per_page":  size,
+            "current":   page,
+            "total_pages": totalPages,
+            "next":      nextPage,
+            "prev":      prevPage,
+        },
+        "applications": resp,
+    })
 }
 
 
 type UpdateApplicationStatusRequest struct {
-	Status string `json:"status" binding:"required,oneof=interview selected rejected"`
+	Status string `json:"status" binding:"required,oneof=interview selected rejected deleted"`
 }
 
 func (h *ApplicationTrackerHandler) UpdateApplicationStatus(c *gin.Context) {
