@@ -51,7 +51,7 @@ func (h *SavedJobsHandler) SaveJob(c *gin.Context) {
         return
     }
 
-    c.JSON(http.StatusCreated, gin.H{"issue": "Job saved successfully"})
+    c.JSON(http.StatusOK, gin.H{"issue": "Job saved successfully"})
 }
 
 // DELETE /saved-jobs/:job_id
