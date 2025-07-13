@@ -36,12 +36,11 @@ type ApplicationTrackerResponse struct {
 	Source       string 	`json:"source"`
     SelectedDate time.Time  `json:"selected_date"`
 }
-
 func (h *ApplicationTrackerHandler) GetApplicationTracker(c *gin.Context) {
     db := c.MustGet("db").(*mongo.Database)
     userID := c.MustGet("userID").(string)
 
-    // 1️⃣ Parse pagination
+    // 1️⃣ Parse pagination params
     page := 1
     size := 10
     if p, err := strconv.Atoi(c.DefaultQuery("page", "1")); err == nil && p > 0 {
@@ -52,27 +51,35 @@ func (h *ApplicationTrackerHandler) GetApplicationTracker(c *gin.Context) {
     }
     skip := (page - 1) * size
 
+    // 1b️⃣ Optional status filter
+    statusParam, statusProvided := c.GetQuery("status") // e.g. "pending", "applied", "interview"
+
     selColl := db.Collection("selected_job_applications")
     seekerColl := db.Collection("seekers")
     matchScoreColl := db.Collection("match_scores")
     internalJobColl := db.Collection("jobs")
     externalJobColl := db.Collection("external_jobs")
 
-    // 2️⃣ Count total matching docs (excluding deleted)
+    // 2️⃣ Build Mongo filter
     filter := bson.M{
         "auth_user_id":           userID,
         "cv_generated":           true,
         "cover_letter_generated": true,
         "view_link":              true,
-        "status":                 bson.M{"$ne": "deleted"},
+        "status":                 bson.M{"$ne": "deleted"}, // always exclude deleted
     }
+    if statusProvided {
+        filter["status"] = statusParam // only include the requested status
+    }
+
+    // 🧮 Count total
     total, err := selColl.CountDocuments(context.TODO(), filter)
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to count applications"})
         return
     }
 
-    // 3️⃣ Fetch paginated docs
+    // 3️⃣ Fetch paginated selection documents
     cursor, err := selColl.Find(
         context.TODO(), filter,
         options.Find().SetSort(bson.D{{"selected_date", -1}}),
@@ -91,22 +98,22 @@ func (h *ApplicationTrackerHandler) GetApplicationTracker(c *gin.Context) {
         return
     }
 
-    // 4️⃣ Update only "pending" to "applied"
-    for idx := range apps {
-        if apps[idx].Status == "pending" {
+    // 4️⃣ Only transition "pending" → "applied"
+    for i := range apps {
+        if apps[i].Status == "pending" {
             _, _ = selColl.UpdateOne(context.TODO(),
-                bson.M{"auth_user_id": userID, "job_id": apps[idx].JobID},
+                bson.M{"auth_user_id": userID, "job_id": apps[i].JobID},
                 bson.M{"$set": bson.M{"status": "applied"}},
             )
-            apps[idx].Status = "applied"
+            apps[i].Status = "applied"
         }
     }
 
-    // 5️⃣ Load key skills once
+    // 5️⃣ Fetch seeker's key skills once
     var seeker models.Seeker
     _ = seekerColl.FindOne(context.TODO(), bson.M{"auth_user_id": userID}).Decode(&seeker)
 
-    // 6️⃣ Build responses
+    // 6️⃣ Build the response slice
     resp := make([]ApplicationTrackerResponse, 0, len(apps))
     for _, app := range apps {
         var title, company, location, jobTitle, jobDesc, skills string
@@ -145,34 +152,36 @@ func (h *ApplicationTrackerHandler) GetApplicationTracker(c *gin.Context) {
             Skills:       skills,
             KeySkills:    seeker.KeySkills,
             MatchScore:   match.MatchScore,
-            Status:       apps[0].Status,
+            Status:       app.Status,
             Source:       app.Source,
             SelectedDate: app.SelectedDate,
         })
     }
 
-    // 7️⃣ Build pagination metadata
+    // 7️⃣ Create pagination metadata
     totalPages := (int(total) + size - 1) / size
-    nextPage, prevPage := "", ""
+    next, prev := "", ""
     if page < totalPages {
-        nextPage = fmt.Sprintf("?page=%d&size=%d", page+1, size)
+        next = fmt.Sprintf("?page=%d&size=%d", page+1, size)
     }
     if page > 1 {
-        prevPage = fmt.Sprintf("?page=%d&size=%d", page-1, size)
+        prev = fmt.Sprintf("?page=%d&size=%d", page-1, size)
     }
 
+    // 8️⃣ Send final payload
     c.JSON(http.StatusOK, gin.H{
         "pagination": gin.H{
-            "total":     total,
-            "per_page":  size,
-            "current":   page,
+            "total":       total,
+            "per_page":    size,
+            "current":     page,
             "total_pages": totalPages,
-            "next":      nextPage,
-            "prev":      prevPage,
+            "next":        next,
+            "prev":        prev,
         },
         "applications": resp,
     })
 }
+
 
 
 type UpdateApplicationStatusRequest struct {
