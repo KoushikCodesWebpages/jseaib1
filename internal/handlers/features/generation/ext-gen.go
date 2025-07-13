@@ -279,7 +279,7 @@ func (h *ExternalJobCVNCLGenerator) PutCV(c *gin.Context) {
 
     opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
     filter := bson.M{"auth_user_id": userID, "job_id": req.JobID}
-    update := bson.M{"$set": bson.M{"cv_data": req.CVData}}
+    update := bson.M{"$set": bson.M{"cv_data": req.CVData, "cv_format":req.CvFormat}}
 
     var updated models.CVData
     err := cvColl.FindOneAndUpdate(c, filter, update, opts).Decode(&updated)
