@@ -207,3 +207,70 @@ func (h *SettingsHandler) PortalPaymentMethod(c *gin.Context) {
     c.JSON(http.StatusOK, gin.H{"url": ps.URL})
 }
 
+// GET /api/settings/billing/portal/cancel-subscription
+// GET /api/settings/billing/portal/cancel-subscription
+func (h *SettingsHandler) PortalCancelSubscription(c *gin.Context) {
+	db := c.MustGet("db").(*mongo.Database)
+	authID := c.MustGet("userID").(string)
+
+	var seeker struct {
+		StripeCustomerID string `bson:"stripe_customer_id"`
+	}
+	if err := db.Collection("seekers").
+		FindOne(c, bson.M{"auth_user_id": authID}).Decode(&seeker); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "seeker not found"})
+		return
+	}
+
+	customerID := seeker.StripeCustomerID
+	if customerID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"issue": "Stripe customer ID missing"})
+		return
+	}
+
+	stripe.Key = config.Cfg.Cloud.StripeSecretKey
+
+	// 🔍 Get the active subscription
+	subIter := subscription.List(&stripe.SubscriptionListParams{
+		Customer: stripe.String(customerID),
+		Status:   stripe.String("active"),
+	})
+
+	var activeSub *stripe.Subscription
+	if subIter.Next() {
+		activeSub = subIter.Subscription()
+	} else {
+		c.JSON(http.StatusNotFound, gin.H{"error": "no active subscription found"})
+		return
+	}
+
+	if err := subIter.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch subscription","issue":"Error has occured"})
+		return
+	}
+
+  // 🚪 Create a portal session with subscription cancel flow
+    ps, err := bpsession.New(&stripe.BillingPortalSessionParams{
+        Customer:  stripe.String(seeker.StripeCustomerID),
+        ReturnURL: stripe.String(config.Cfg.Project.SuccessUrl),
+        FlowData: &stripe.BillingPortalSessionFlowDataParams{
+            Type: stripe.String(string(stripe.BillingPortalSessionFlowTypeSubscriptionCancel)),
+            SubscriptionCancel: &stripe.BillingPortalSessionFlowDataSubscriptionCancelParams{
+                Subscription: stripe.String(activeSub.ID),
+            },
+            AfterCompletion: &stripe.BillingPortalSessionFlowDataAfterCompletionParams{
+                Type: stripe.String("redirect"),
+                Redirect: &stripe.BillingPortalSessionFlowDataAfterCompletionRedirectParams{
+                    ReturnURL: stripe.String(config.Cfg.Project.SuccessUrl),
+                },
+            },
+        },
+    })
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error(),"issue":"Subscription is still active and will be soon canceled"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"url": ps.URL}) // frontend can redirect to this
+}

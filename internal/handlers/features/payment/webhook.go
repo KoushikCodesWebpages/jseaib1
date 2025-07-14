@@ -93,17 +93,33 @@ func (h *PaymentHandler) Webhook(c *gin.Context) {
 	}
 
 
-            
+                
     case "customer.subscription.deleted":
         var sub stripe.Subscription
         if err := json.Unmarshal(evt.Data.Raw, &sub); err != nil {
             log.Println("❌ Delete parse failed:", err)
             break
         }
-        _, err := col.UpdateOne(ctx, bson.M{"stripe_customer_id": sub.Customer.ID},
-            bson.M{"$set": bson.M{"subscription_tier": "free", "updated_at": time.Now()}})
-        if err != nil {
-            log.Println("❌ Mark free failed:", err)
+
+        filter := bson.M{"stripe_customer_id": sub.Customer.ID}
+        unsetFields := bson.M{
+            "subscription_tier":           "",
+            "subscription_period":         "",
+            "external_application_count":  "",
+            "internal_application_count":  "",
+            "proficiency_test":            "",
+            "subscription_interval_start": "",
+            "subscription_interval_end":   "",
+        }
+        update := bson.M{
+            "$set": bson.M{"subscription_tier": "free", "updated_at": time.Now()},
+            "$unset": unsetFields,
+        }
+
+        if _, err := col.UpdateOne(ctx, filter, update); err != nil {
+            log.Println("❌ Cleanup on cancel failed:", err)
+        } else {
+            log.Println("✅ Cancelled: tier set to free, extra fields removed")
         }
     }
 

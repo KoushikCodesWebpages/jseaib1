@@ -121,9 +121,11 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 		settingsRoutes.PUT("/editpreferences", settingsHandler.UpdatePreferences)
 		settingsRoutes.GET("/getnotification", settingsHandler.GetNotificationSettings)
 		settingsRoutes.PUT("/editnotification", settingsHandler.UpdateNotificationSettings)
+
 		settingsRoutes.GET("/view/billing", settingsHandler.GetBillingInfo)
 		settingsRoutes.GET("/billing/payment-method",settingsHandler.PortalPaymentMethod)
 		settingsRoutes.GET("/explore-plans",settingsHandler.GetExplorePlans)
+		settingsRoutes.GET("/cancel/active-plan",settingsHandler.PortalCancelSubscription)
 
 		settingsRoutes.POST("/givefeedback", settingsHandler.RequestFeedbackEmail)
 
