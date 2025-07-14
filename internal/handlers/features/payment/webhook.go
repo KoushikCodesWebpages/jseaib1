@@ -101,20 +101,21 @@ func (h *PaymentHandler) Webhook(c *gin.Context) {
             break
         }
 
-        filter := bson.M{"stripe_customer_id": sub.Customer.ID}
-        unsetFields := bson.M{
-            "subscription_tier":           "",
+    filter := bson.M{"stripe_customer_id": sub.Customer.ID}
+    update := bson.M{
+        "$set": bson.M{
+            "subscription_tier": "free",
+            "updated_at":        time.Now(),
+        },
+        "$unset": bson.M{
             "subscription_period":         "",
             "external_application_count":  "",
             "internal_application_count":  "",
             "proficiency_test":            "",
             "subscription_interval_start": "",
             "subscription_interval_end":   "",
-        }
-        update := bson.M{
-            "$set": bson.M{"subscription_tier": "free", "updated_at": time.Now()},
-            "$unset": unsetFields,
-        }
+        },
+    }
 
         if _, err := col.UpdateOne(ctx, filter, update); err != nil {
             log.Println("❌ Cleanup on cancel failed:", err)
