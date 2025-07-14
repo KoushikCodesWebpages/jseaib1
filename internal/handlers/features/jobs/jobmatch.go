@@ -123,8 +123,8 @@ func StartJobMatchScoreCalculation(c *gin.Context, db *mongo.Database, userID st
 // Configuration: section weights sum to 1.0
 var (
     skillsWeight = 1.0
-    certsWeight  = 0.3
-    langsWeight  = 0.2
+    // certsWeight  = 0.3
+    // langsWeight  = 0.2
 )
 
 // CalculateMatchScore returns a match score (0.0–1.0)
@@ -181,9 +181,11 @@ func CalculateMatchScore(seeker models.Seeker, job models.Job) (float64, error) 
     // Apply directional deviation
     deviation := (rand.Float64()*1 + 1) / 100 * final // ±1–2%
     if final > 60 {
-        final = math.Round((final - deviation) * 100) / 100
+        final = math.Round((final) * 100) / 100
+        final = final - deviation
     } else {
-        final = math.Round((final + deviation) * 100) / 100
+        final = math.Round((final) * 100) / 100
+        final = final + deviation
     }
 
     return final, nil
@@ -226,7 +228,7 @@ func keywordMatch(tokens []string, jobText string) float64 {
 
 
 // Stub: your existing implementation
-func extractFields(obj interface{}, fields ...string) []string {
-    // your existing logic here
-    return nil
-}
+// func extractFields(obj interface{}, fields ...string) []string {
+//     // your existing logic here
+//     return nil
+// }
