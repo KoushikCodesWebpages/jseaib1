@@ -3,11 +3,14 @@ package appuser
 import (
 
 	"RAAS/internal/models"
-	// "RAAS/internal/handlers/features/jobs"
+	"RAAS/internal/handlers/features/jobs"
+	"RAAS/internal/handlers/repository"
 
 	"fmt"
 	"net/http"
-
+	"log"
+	"context"
+	"time"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -16,10 +19,12 @@ import (
 // GetNextEntryStep handles fetching the next incomplete step in the user entry timeline for MongoDB
 func GetNextEntryStep() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		
-		userID := c.MustGet("userID").(string)
-
 		db := c.MustGet("db").(*mongo.Database)
+		userID := c.MustGet("userID").(string)
+		seekersColl := db.Collection("seekers")
+		
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+    	defer cancel()
 		if db == nil {
 			fmt.Println("Error: MongoDB database is nil")
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Database unavailable"})
@@ -78,6 +83,27 @@ func GetNextEntryStep() gin.HandlerFunc {
 			}
 		}
 
+		    // 7️⃣ Load seeker profile
+		var seeker models.Seeker
+		if err := seekersColl.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
+			if err == mongo.ErrNoDocuments {
+				c.JSON(http.StatusNotFound, gin.H{"issue": "Seeker not found"})
+				log.Printf("Seeker not found for auth_user_id: %s", userID)
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"issue": "Failed to retrieve seeker"})
+				log.Printf("Failed to retrieve seeker for auth_user_id: %s, Error: %v", userID, err)
+			}
+			return
+		}
+		
+		completion, missing := repository.CalculateJobProfileCompletion(seeker)
+		if completion == 100 || len(missing) == 0 {
+			if err = jobs.StartJobMatchScoreCalculation(c, db, userID); err != nil {
+				log.Printf("Error starting job match process: %v", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start job match process"})
+				return
+			}
+		}
 
 		c.JSON(http.StatusOK, gin.H{
 			"completed": true,
