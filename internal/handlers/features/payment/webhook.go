@@ -58,10 +58,10 @@ func (h *PaymentHandler) Webhook(c *gin.Context) {
 			priceID = inv.Parent.SubscriptionDetails.Metadata["price_id"]
 		}
 		customerID := inv.Customer.ID
-		log.Printf(
-			"✅ invoice.paid: auth_user_id=%s, stripe_customer_id=%s, price_id=%s",
-			authID, customerID, priceID,
-		)
+		// log.Printf(
+		// 	"✅ invoice.paid: auth_user_id=%s, stripe_customer_id=%s, price_id=%s",
+		// 	authID, customerID, priceID,
+		// )
 
 		plan := GetPlanConfig(priceID)
 
@@ -85,11 +85,11 @@ func (h *PaymentHandler) Webhook(c *gin.Context) {
 		"updated_at":                    time.Now(),
 	}}
 
-	res, err := col.UpdateOne(ctx, filter, update)
+	_, err := col.UpdateOne(ctx, filter, update)
 	if err != nil {
 		log.Println("❌ Seeker update failed:", err)
 	} else {
-		log.Printf("✅ Seeker update matched=%d, modified=%d", res.MatchedCount, res.ModifiedCount)
+		// log.Printf("✅ Seeker update matched=%d, modified=%d", res.MatchedCount, res.ModifiedCount)
 	}
 
 
@@ -120,7 +120,7 @@ func (h *PaymentHandler) Webhook(c *gin.Context) {
         if _, err := col.UpdateOne(ctx, filter, update); err != nil {
             log.Println("❌ Cleanup on cancel failed:", err)
         } else {
-            log.Println("✅ Cancelled: tier set to free, extra fields removed")
+            // log.Println("✅ Cancelled: tier set to free, extra fields removed")
         }
     }
 

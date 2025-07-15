@@ -7,7 +7,6 @@ import (
 	"context"
 	"net/http"
 	"time"
-	"log"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -74,9 +73,6 @@ func (h *SettingsHandler) GetPreferences(c *gin.Context) {
 		CreatedAt:    prefs.CreatedAt,
 		UpdatedAt:    prefs.UpdatedAt,
 	}
-		log.Printf("🔍 Retrieved preferences for user %s: %+v", userID, prefs)
-
-
 	c.JSON(http.StatusOK, response)
 }
 

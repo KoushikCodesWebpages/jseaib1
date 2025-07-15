@@ -22,7 +22,7 @@ type JobDTO struct {
     JobType        string       `json:"job_type" bson:"job_type"`               // e.g., Full-time, Part-time
     Skills         string       `json:"skills" bson:"skills"`                   // Comma-separated required skills
     UserSkills     []string     `json:"user_skills" bson:"user_skills"`         // List of user skills used in matching
-    MatchScore     float64      `json:"match_score" bson:"match_score"`         // Match score from 0 to 100
+    MatchScore     int      `json:"match_score" bson:"match_score"`         // Match score from 0 to 100
     Description    string       `json:"description" bson:"description"` 
     
     // New Fields  

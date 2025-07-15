@@ -30,7 +30,7 @@ func IsJobSelected(c context.Context, db *mongo.Database, userID, jobID string) 
 }
 
 
-func GetMatchScoreForJob(c context.Context, db *mongo.Database, userID, jobID string) float64 {
+func GetMatchScoreForJob(c context.Context, db *mongo.Database, userID, jobID string) int {
 	collection := db.Collection("match_scores")
 
 	var result models.MatchScore
@@ -41,14 +41,15 @@ func GetMatchScoreForJob(c context.Context, db *mongo.Database, userID, jobID st
 
 	if err == mongo.ErrNoDocuments {
 		// Not found, return default
-		return 50.0
+		return 50
 	}
 	if err != nil {
 		fmt.Println("Error fetching match score:", err)
-		return 50.0
+		return 50
 	}
-	return result.MatchScore
+	return int(result.MatchScore)
 }
+
 
 
 func FetchAppliedJobIDs(ctx context.Context, collection *mongo.Collection, userID string) ([]string, error) {

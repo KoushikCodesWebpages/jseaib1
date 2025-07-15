@@ -163,10 +163,10 @@ func CalculateMatchScore(seeker models.Seeker, job models.Job) (float64, error) 
 
     // 2. Prepare job text once
     jobText := strings.ToLower(job.Title + " " + job.JobDescription + " " + job.Skills)
-	fmt.Println("🔍 Skills Tokens:", skillsTokens)
+	// fmt.Println("🔍 Skills Tokens:", skillsTokens)
     // fmt.Println("🔍 Certificate Tokens:", certTokens)
     // fmt.Println("🔍 Language Tokens:", langTokens)
-    fmt.Println("🔍 Job Text snippet:", jobText[:min(len(jobText), 20)])
+    // fmt.Println("🔍 Job Text snippet:", jobText[:min(len(jobText), 20)])
 
     // 3. Compute per-section scores
     skillScore := keywordMatch(skillsTokens, jobText)
@@ -179,7 +179,7 @@ func CalculateMatchScore(seeker models.Seeker, job models.Job) (float64, error) 
     final := math.Round(scaled*100) / 100
 
     // Apply directional deviation
-    deviation := (rand.Float64()*1 + 1) / 100 * final // ±1–2%
+    deviation := (rand.Float64()*2 + 1) / 100 * final // ±1–2%
     if final > 60 {
         final = math.Round((final) * 100) / 100
         final = final - deviation

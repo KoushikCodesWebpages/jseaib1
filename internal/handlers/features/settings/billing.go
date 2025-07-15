@@ -39,7 +39,7 @@ func (h *SettingsHandler) GetBillingInfo(c *gin.Context) {
 
 	// Free users — return empty billing info
 	if seeker.SubscriptionTier == "free" || seeker.StripeCustomerID == "" {
-		log.Println("ℹ️ Free plan user or missing StripeCustomerID — returning minimal billing info")
+		// log.Println("ℹ️ Free plan user or missing StripeCustomerID — returning minimal billing info")
 		c.JSON(http.StatusOK, dto.BillingInfoDTO{
 			SubscriptionTier:          seeker.SubscriptionTier,
 			SubscriptionPeriod:        seeker.SubscriptionPeriod,
@@ -74,7 +74,7 @@ func (h *SettingsHandler) GetBillingInfo(c *gin.Context) {
 
 	if subIter.Next() {
 		sub := subIter.Subscription()
-		log.Printf("📦 Subscription ID: %s, Status: %s", sub.ID, sub.Status)
+		// log.Printf("📦 Subscription ID: %s, Status: %s", sub.ID, sub.Status)
 
 		if len(sub.Items.Data) > 0 {
 			item := sub.Items.Data[0]
@@ -100,7 +100,7 @@ func (h *SettingsHandler) GetBillingInfo(c *gin.Context) {
 	} else {
 		billingEmail = cust.Email
 		billedTo = cust.Name
-		log.Printf("📧 Billing Email: %s | 👤 Billed To: %s", billingEmail, billedTo)
+		// log.Printf("📧 Billing Email: %s | 👤 Billed To: %s", billingEmail, billedTo)
 
 		// Fetch default payment method
 		if cust.InvoiceSettings != nil && cust.InvoiceSettings.DefaultPaymentMethod != nil {
@@ -117,7 +117,7 @@ func (h *SettingsHandler) GetBillingInfo(c *gin.Context) {
 				default:
 					paymentMethod = string(pm.Type)
 				}
-				log.Printf("💳 Payment Method: %s", paymentMethod)
+				// log.Printf("💳 Payment Method: %s", paymentMethod)
 			}
 		} else {
 			log.Println("⚠️ No default payment method set.")
@@ -136,10 +136,10 @@ func (h *SettingsHandler) GetBillingInfo(c *gin.Context) {
 
 	for invoiceIter.Next() {
 		inv := invoiceIter.Invoice()
-		log.Printf("🧾 Found Invoice: ID=%s, Status=%s", inv.ID, inv.Status)
+		// log.Printf("🧾 Found Invoice: ID=%s, Status=%s", inv.ID, inv.Status)
 
 		if inv.Status != stripe.InvoiceStatusPaid {
-			log.Printf("⏭️ Skipping unpaid invoice: %s", inv.ID)
+			// log.Printf("⏭️ Skipping unpaid invoice: %s", inv.ID)
 			continue
 		}
 
@@ -154,7 +154,7 @@ func (h *SettingsHandler) GetBillingInfo(c *gin.Context) {
 		log.Printf("❌ Error listing invoices: %v", err)
 	}
 
-	log.Println("✅ Billing info compiled successfully.")
+	// log.Println("✅ Billing info compiled successfully.")
 
 	// Final response
 	c.JSON(http.StatusOK, dto.BillingInfoDTO{

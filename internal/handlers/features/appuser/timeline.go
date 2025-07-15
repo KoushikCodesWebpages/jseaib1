@@ -18,7 +18,6 @@ func GetNextEntryStep() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		
 		userID := c.MustGet("userID").(string)
-		fmt.Println("UserID:", userID) 
 
 		db := c.MustGet("db").(*mongo.Database)
 		if db == nil {
@@ -57,7 +56,6 @@ func GetNextEntryStep() gin.HandlerFunc {
 		}
 	
 		for _, step := range steps {
-			fmt.Printf("Checking step: %s, Completed: %v, Required: %v\n", step.Name, step.Completed, step.Required)
 			if step.Required && !step.Completed {
 				c.JSON(http.StatusOK, gin.H{
 					"completed": false,
