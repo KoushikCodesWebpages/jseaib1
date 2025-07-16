@@ -107,6 +107,9 @@ func JobRetrievalHandler(c *gin.Context) {
 	if title := c.Query("title"); title != "" {
 		filter["title"] = bson.M{"$regex": title, "$options": "i"}
 	}
+	if company := c.Query("company"); company != "" {
+		filter["company"] = bson.M{"$regex": company, "$options": "i"}
+	}
 
 	jobCursor, err := db.Collection("jobs").Find(c, filter)
 	if err != nil {
