@@ -105,10 +105,10 @@ func (h *PaymentHandler) Webhook(c *gin.Context) {
     update := bson.M{
         "$set": bson.M{
             "subscription_tier": "free",
+            "subscription_period":"monthly",
             "updated_at":        time.Now(),
         },
         "$unset": bson.M{
-            "subscription_period":         "",
             "external_application_count":  "",
             "internal_application_count":  "",
             "proficiency_test":            "",
