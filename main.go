@@ -41,7 +41,7 @@ func main() {
 	
 
     // Start Daily Worker (here: every 5s for testing or switch to 24h)
-	deletionCancel := workers.StartPurgeWorker(client.Database(config.Cfg.Cloud.MongoDBName), 24*time.Second)
+	deletionCancel := workers.StartPurgeWorker(client.Database(config.Cfg.Cloud.MongoDBName), 24*time.Hour)
 	defer deletionCancel()
 
     // notifier := workers.StartTestNotifier(client.Database(config.Cfg.Cloud.MongoDBName))
