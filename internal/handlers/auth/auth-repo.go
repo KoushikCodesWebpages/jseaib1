@@ -262,7 +262,7 @@ func (r *UserRepo) CreateSeeker(input dto.SeekerSignUpInput, hashedPassword stri
 			<html>
 			<body style="font-family: Arial, sans-serif; background-color: #f9f9f9; margin: 0; padding: 0;">
 				<div style="max-width: 600px; margin: 40px auto; background: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-				<h2 style="color: #4CAF50; text-align: center;">Welcome to JSE AI!</h2>
+				<h2 style="color: #4CAF50; text-align: center;">Welcome to JSE AI</h2>
 				<p>Hi %s,</p>
 				<p>Thanks for signing up! To get started, please confirm your email address by clicking the button below:</p>
 				<div style="text-align: center; margin: 30px 0;">
@@ -271,7 +271,7 @@ func (r *UserRepo) CreateSeeker(input dto.SeekerSignUpInput, hashedPassword stri
 					</a>
 				</div>
 				<p>If you didn’t create this account, you can safely ignore this email.</p>
-				<p>Cheers,<br><strong>The Team</strong></p>
+				<p>Cheers,<br><strong>The JSEAI Team</strong></p>
 				</div>
 			</body>
 			</html>

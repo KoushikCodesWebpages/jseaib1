@@ -69,7 +69,7 @@ func SeekerSignUp(c *gin.Context) {
 		<html>
 		<body style="font-family: Arial, sans-serif; background-color: #f9f9f9; margin: 0; padding: 0;">
 			<div style="max-width: 600px; margin: 40px auto; background: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-				<h2 style="color: #4CAF50; text-align: center;">Welcome back to JSE AI!</h2>
+				<h2 style="color: #4CAF50; text-align: center;">Welcome back to JSE AI</h2>
 				<p>Hi %s,</p>
 				<p>You already signed up but didn't verify your email. Please click the button below to complete verification:</p>
 				<div style="text-align: center; margin: 30px 0;">
