@@ -74,7 +74,7 @@ func VerifyEmail(c *gin.Context) {
 			<div class="card">
 				<h1>✅ Email Verified</h1>
 				<p>Your email has been successfully verified.</p>
-				<a href="https://dev.arshan.digital" target="_blank" rel="noopener noreferrer">Go to Login</a>
+				<a href="https://arshan.digital" target="_blank" rel="noopener noreferrer">Go to Login</a>
 
 			</div>
 		</body>
