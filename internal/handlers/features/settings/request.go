@@ -19,7 +19,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-const adminEmail = "koushik@arshan.de"
+const adminEmail = "help@arshan.digital"
 
 func (h *SettingsHandler) RequestFeedbackEmail(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
