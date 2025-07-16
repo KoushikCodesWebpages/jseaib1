@@ -50,7 +50,7 @@ if err != nil {
     case strings.Contains(msg, "user_not_found"):
         c.JSON(http.StatusUnauthorized, gin.H{"issue": "Account with this email doesn't exist.", "error": "user_not_found"})
     case strings.Contains(msg, "user_deleted"):
-        c.JSON(http.StatusForbidden, gin.H{"issue": "This account was deleted. Contact support if you think this is a mistake.", "error": "user_deleted"})
+        c.JSON(http.StatusForbidden, gin.H{"issue": "This account was deleted. Please contact help@arshan.digital for further help", "error": "user_deleted"})
     case strings.Contains(msg, "email_not_verified"):
         c.JSON(http.StatusUnauthorized, gin.H{"issue": "Please verify your email before logging in.", "error": "email_unverified"})
     case strings.Contains(msg, "invalid_password"):

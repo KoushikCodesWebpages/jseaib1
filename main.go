@@ -2,7 +2,7 @@ package main
 
 import (
     "RAAS/app/routes"
-    // "RAAS/app/workers"
+    "RAAS/app/workers"
     "RAAS/core/config"
     "RAAS/internal/models"
     "context"
@@ -40,9 +40,9 @@ func main() {
 
 	
 
-    // // Start Daily Worker (here: every 5s for testing or switch to 24h)
-	// deletionCancel := workers.StartPurgeWorker(client.Database(config.Cfg.Cloud.MongoDBName), 24*time.Second)
-	// defer deletionCancel()
+    // Start Daily Worker (here: every 5s for testing or switch to 24h)
+	deletionCancel := workers.StartPurgeWorker(client.Database(config.Cfg.Cloud.MongoDBName), 24*time.Second)
+	defer deletionCancel()
 
     // notifier := workers.StartTestNotifier(client.Database(config.Cfg.Cloud.MongoDBName))
     // defer notifier.Stop()
