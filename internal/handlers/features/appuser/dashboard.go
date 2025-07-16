@@ -9,6 +9,7 @@ import (
 
     "RAAS/internal/dto"
     "RAAS/internal/handlers/repository"
+	"RAAS/internal/handlers/features/jobs"
     "RAAS/internal/models"
 
 
@@ -24,62 +25,66 @@ func NewSeekerProfileHandler() *SeekerProfileHandler {
     return &SeekerProfileHandler{}
 }
 
-// GetDashboard only returns dashboard if profile setup is complete.
 func (h *SeekerProfileHandler) GetDashboard(c *gin.Context) {
-	db := c.MustGet("db").(*mongo.Database)
-	userID := c.MustGet("userID").(string)
+    db := c.MustGet("db").(*mongo.Database)
+    userID := c.MustGet("userID").(string)
 
-	// Fetch seeker profile
-	seeker := h.fetchSeeker(c, db, userID)
-	if seeker == nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"issue": "User profile data is missing.",
-			"error": "seeker_not_found",
-		})
-		return
-	}
+    seeker := h.fetchSeeker(c, db, userID)
+    if seeker == nil {
+        c.JSON(http.StatusNotFound, gin.H{
+            "issue": "User profile data is missing.",
+            "error": "seeker_not_found",
+        })
+        return
+    }
 
-	// ✅ Check UserEntryTimeline for completion
-	var timeline models.UserEntryTimeline
-	err := db.Collection("user_entry_timelines").FindOne(c, bson.M{
-		"auth_user_id": userID,
-	}).Decode(&timeline)
+    var timeline models.UserEntryTimeline
+    if err := db.Collection("user_entry_timelines").
+        FindOne(c, bson.M{"auth_user_id": userID}).
+        Decode(&timeline); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "issue":   "Could not retrieve user progress timeline.",
+            "error":   "timeline_fetch_failed",
+            "details": err.Error(),
+        })
+        return
+    }
 
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"issue":   "Could not retrieve user progress timeline.",
-			"error":   "timeline_fetch_failed",
-			"details": err.Error(),
-		})
-		return
-	}
+    if !timeline.Completed {
+        c.JSON(http.StatusForbidden, gin.H{
+            "issue": "Complete your profile setup to access the dashboard.",
+            "error": "profile_incomplete",
+        })
+        return
+    }
 
-	if !timeline.Completed {
-		c.JSON(http.StatusForbidden, gin.H{
-			"issue": "Complete your profile setup to access the dashboard.",
-			"error": "profile_incomplete",
-		})
-		return
-	}
+    completion, missing := repository.CalculateJobProfileCompletion(*seeker)
+    if completion == 100 || len(missing) == 0 {
+        if err := jobs.StartJobMatchScoreCalculation(c, db, userID); err != nil {
+            log.Printf("Error starting job match process: %v", err)
+            c.JSON(http.StatusInternalServerError, gin.H{
+                "error": "Failed to start job match process",
+            })
+            return
+        }
+    }
 
-	// ✅ Build dashboard only if profile is complete
-	resp := dto.DashboardResponse{
-		InfoBlocks:              h.buildInfo(*seeker, db),
-		Profile:                 h.buildFields(*seeker),
-		Checklist:               h.buildChecklist(*seeker),
-		MiniNewJobsResponse:     h.buildMiniJobs(db,userID),
-		MiniTestSummaryResponse: h.buildMiniTestSummary(),
-	}
+    resp := dto.DashboardResponse{
+        InfoBlocks:              h.buildInfo(*seeker, db),
+        Profile:                 h.buildFields(*seeker),
+        Checklist:               h.buildChecklist(c, db, userID),
+        MiniNewJobsResponse:     h.buildMiniJobs(db, userID),
+        MiniTestSummaryResponse: h.buildMiniTestSummary(),
+    }
 
-	c.JSON(http.StatusOK, gin.H{
-		"info_block":   resp.InfoBlocks,
-		"profile":      resp.Profile,
-		"checklist":    resp.Checklist,
-		"new_jobs":     resp.MiniNewJobsResponse,
-		"test_summary": resp.MiniTestSummaryResponse,
-	})
+    c.JSON(http.StatusOK, gin.H{
+        "info_block":   resp.InfoBlocks,
+        "profile":      resp.Profile,
+        "checklist":    resp.Checklist,
+        "new_jobs":     resp.MiniNewJobsResponse,
+        "test_summary": resp.MiniTestSummaryResponse,
+    })
 }
-
 
 // Fetch seeker document
 func (h *SeekerProfileHandler) fetchSeeker(c *gin.Context, db *mongo.Database, userID string) *models.Seeker {
@@ -146,21 +151,32 @@ func (h *SeekerProfileHandler) buildFields(s models.Seeker) dto.Profile {
 
 
 
-// Build the Checklist
-func (h *SeekerProfileHandler) buildChecklist(s models.Seeker) dto.Checklist {
-    return dto.Checklist{
-        ChecklistMultifactorAuth: false,
-        ChecklistCVFormatFixed: false,
-        ChecklistCLFormatFixed: false,
-        ChecklistProfileImg: false,
-        ChecklistDataUsage: false,
-        ChecklistDataTraining: false,
-        ChecklistNumberLock: false,
-        ChecklistDataFinalization: false,
-        ChecklistTerms: false,
-        ChecklistComplete: false,
+func (h *SeekerProfileHandler) buildChecklist(c context.Context, db *mongo.Database, userID string) (dto.Checklist) {
+    // 1️⃣ Check if a ProfilePic exists for the user
+    profilePicColl := db.Collection("profile_pic")
+    count, err := profilePicColl.CountDocuments(c, bson.M{"auth_user_id": userID})
+    if err != nil {
+        return dto.Checklist{}
     }
+    hasProfilePic := count > 0
+
+    // 2️⃣ Build the Checklist
+    checklist := dto.Checklist{
+        ChecklistMultifactorAuth:  true,                // or your existing logic
+        ChecklistCVFormatFixed:     true,
+        ChecklistCLFormatFixed:     true,
+        ChecklistProfileImg:        hasProfilePic,       // ✅ Set based on DB lookup
+        ChecklistDataUsage:         true,
+        ChecklistDataTraining:      true,
+        ChecklistNumberLock:        true,
+        ChecklistDataFinalization:  true,
+        ChecklistTerms:             true,
+        ChecklistComplete:          true,
+    }
+
+    return checklist
 }
+
 
 func (h *SeekerProfileHandler) buildMiniJobs(db *mongo.Database, userID string) dto.MiniNewJobsResponse {
 	const maxMiniJobs = 3
