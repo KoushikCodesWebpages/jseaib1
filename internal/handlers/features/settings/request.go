@@ -200,7 +200,6 @@ func (h *SettingsHandler) SendEmailChangeRequest(c *gin.Context) {
         From:     config.Cfg.Cloud.DefaultFromEmail,
         UseTLS:   config.Cfg.Cloud.EmailUseTLS,
     }
-    adminEmail := config.Cfg.Support.AdminEmail
 
     log.Printf("📩 Sending email-change request for user %s (%s) to admin", userID, currentEmail)
     if err := utils.SendEmail(emailCfg, adminEmail, "User Email Change Request", emailBody); err != nil {
@@ -211,44 +210,79 @@ func (h *SettingsHandler) SendEmailChangeRequest(c *gin.Context) {
     c.JSON(http.StatusOK, gin.H{"message": "Email change request sent to support"})
 }
 
-
 func (h *SettingsHandler) SendJobTitleChangeRequest(c *gin.Context) {
-	userID := c.MustGet("userID").(string)
-	userEmail := c.MustGet("email").(string)
+    userID := c.MustGet("userID").(string)
+    currentEmail := c.MustGet("email").(string)
 
-	var req struct {
-		Body string `json:"body" binding:"required"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"issue": "Invalid input", "error": err.Error()})
-		return
-	}
+    var req struct {
+        Body string `json:"body" binding:"required"`
+    }
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"issue": "Invalid input", "error": err.Error()})
+        return
+    }
 
-	emailCfg := utils.EmailConfig{
-		Host:     config.Cfg.Cloud.EmailHost,
-		Port:     config.Cfg.Cloud.EmailPort,
-		Username: config.Cfg.Cloud.EmailHostUser,
-		Password: config.Cfg.Cloud.EmailHostPassword,
-		From:     config.Cfg.Cloud.DefaultFromEmail,
-		UseTLS:   config.Cfg.Cloud.EmailUseTLS,
-	}
+    // 1️⃣ Fetch subscription data
+    db := c.MustGet("db").(*mongo.Database)
+    var seeker struct {
+        SubscriptionTier          string    `bson:"subscription_tier"`
+        SubscriptionPeriod        string    `bson:"subscription_period"`
+        SubscriptionIntervalStart time.Time `bson:"subscription_interval_start"`
+        SubscriptionIntervalEnd   time.Time `bson:"subscription_interval_end"`
+        StripeCustomerID          string    `bson:"stripe_customer_id"`
+    }
+    _ = db.Collection("seekers").
+        FindOne(c, bson.M{"auth_user_id": userID}).
+        Decode(&seeker)
 
-	subject := "Request for Job Title Change"
-	//adminEmail := "koushik@arshan.de" // 📬 send to admin!
+    // 2️⃣ Compose HTML email
+    emailBody := fmt.Sprintf(`
+    <html>
+      <body style="font-family: Arial, sans-serif; background-color: #f3f3f3; padding: 20px;">
+        <div style="max-width:600px; margin:auto; background:white; padding:20px; border-radius:8px;">
+          <h2 style="color:#333; text-align:center;">🏢 Job Title Change Request</h2>
+          <p><strong>User ID:</strong> %s</p>
+          <p><strong>Current Email:</strong> %s</p>
+          <hr>
+          <h3 style="color:#4CAF50;">Subscription Details</h3>
+          <p><strong>Tier:</strong> %s</p>
+          <p><strong>Period:</strong> %s</p>
+          <p><strong>Interval:</strong> %s – %s</p>
+          <p><strong>Stripe Customer ID:</strong> %s</p>
+          <hr>
+          <h3 style="color:#4CAF50;">User Message</h3>
+          <p>%s</p>
+          <hr>
+          <p style="font-size:0.8em; color:#999;">Sent at: %s</p>
+        </div>
+      </body>
+    </html>`,
+        userID,
+        currentEmail,
+        seeker.SubscriptionTier,
+        seeker.SubscriptionPeriod,
+        seeker.SubscriptionIntervalStart.Format("2006-01-02"),
+        seeker.SubscriptionIntervalEnd.Format("2006-01-02"),
+        seeker.StripeCustomerID,
+        html.EscapeString(req.Body),
+        time.Now().Format("2006-01-02 15:04 MST"),
+    )
 
-	emailBody := "Job Title change request from user:\n\n" +
-		"User ID: " + userID + "\n" +
-		"Current Email: " + userEmail + "\n\n" +
-		"Message:\n" + req.Body
+    // 3️⃣ Send email
+    emailCfg := utils.EmailConfig{
+        Host:     config.Cfg.Cloud.EmailHost,
+        Port:     config.Cfg.Cloud.EmailPort,
+        Username: config.Cfg.Cloud.EmailHostUser,
+        Password: config.Cfg.Cloud.EmailHostPassword,
+        From:     config.Cfg.Cloud.DefaultFromEmail,
+        UseTLS:   config.Cfg.Cloud.EmailUseTLS,
+    }
 
-	log.Printf("📬 Forwarding job title change request for user %s (%s) to admin", userID, userEmail)
+    log.Printf("📩 Sending job title change request for user %s (%s) to admin", userID, currentEmail)
+    if err := utils.SendEmail(emailCfg, adminEmail, "User Job Title Change Request", emailBody); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"issue": "Failed to send email", "error": err.Error()})
+        return
+    }
 
-	if err := utils.SendEmail(emailCfg, adminEmail, subject, emailBody); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"issue": "Failed to send email", "error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"issue": "Job title change request sent to support"})
+    c.JSON(http.StatusOK, gin.H{"message": "Job title change request sent to support"})
 }
-
-
