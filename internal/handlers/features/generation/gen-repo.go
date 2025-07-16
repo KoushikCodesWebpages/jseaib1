@@ -19,107 +19,97 @@ import (
     
 )
 
-
 func upsertSelectedJobApp(
     db *mongo.Database,
-    userID,
-    jobID string,
-    genType string,   // "cover_letter", "cv", etc.
-    sourceType string, // "internal" | "external"
+    userID, jobID, genType, sourceType string, // sourceType: "internal" | "external"
 ) error {
     ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
     defer cancel()
 
-    seekersColl := db.Collection("seekers")
     appsColl := db.Collection("selected_job_applications")
+    seekersColl := db.Collection("seekers")
+    jobsColl := db.Collection("jobs") // For internal job lookup
+
+    // Only fetch `company` for internal jobs
+    var company string
+    if sourceType == "internal" {
+        var intJob struct{ Company string `bson:"company"` }
+        if err := jobsColl.FindOne(ctx, bson.M{"job_id": jobID}).Decode(&intJob); err != nil {
+            return fmt.Errorf("internal job not found: %w", err)
+        }
+        company = intJob.Company
+    }
 
     fieldGen := fmt.Sprintf("%s_generated", genType)
     filter := bson.M{"auth_user_id": userID, "job_id": jobID}
 
-    var existing bson.M
-    err := appsColl.FindOne(ctx, filter).Decode(&existing)
-    isInsert := err == mongo.ErrNoDocuments
-
-    // For existing documents, also enforce view_link=true when external
+    existingErr := appsColl.FindOne(ctx, filter).Err()
+    isInsert := existingErr == mongo.ErrNoDocuments
     mustSetViewLink := sourceType == "external"
 
     if isInsert {
-        var seeker struct {
-            InternalApplications int `bson:"internal_application_count"`
-            ExternalApplications int `bson:"external_application_count"`
-        }
-        if err := seekersColl.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
-            return fmt.Errorf("failed to fetch seeker: %w", err)
-        }
-
-        if sourceType == "internal" && seeker.InternalApplications <= 0 {
-            return fmt.Errorf("internal application limit exceeded")
-        }
-        if sourceType == "external" && seeker.ExternalApplications <= 0 {
-            return fmt.Errorf("external application limit exceeded")
-        }
-
         session, err := db.Client().StartSession()
         if err != nil {
             return fmt.Errorf("failed to start session: %w", err)
         }
         defer session.EndSession(ctx)
 
-        _, err = session.WithTransaction(ctx,
-            func(sc mongo.SessionContext) (interface{}, error) {
-                setFields := bson.M{
-                    fieldGen:        true,
-                    "selected_date": time.Now(),
-                }
-                onInsert := bson.M{
-                    "status":          "pending",
-                    "source":          sourceType,
-                    "view_link":       mustSetViewLink, // external → true; internal → false
-                }
-                update := bson.M{
-                    "$set":         setFields,
-                    "$setOnInsert": onInsert,
-                }
-                _, err := appsColl.UpdateOne(sc, filter, update, options.Update().SetUpsert(true))
-                if err != nil {
-                    return nil, err
-                }
+        _, err = session.WithTransaction(ctx, func(sc mongo.SessionContext) (interface{}, error) {
+            // Common update fields
+            setFields := bson.M{
+                fieldGen:        true,
+                "selected_date": time.Now(),
+            }
+            // Only set company if internal
+            if sourceType == "internal" {
+                setFields["company"] = company
+            }
 
-                decField := "external_application_count"
-                if sourceType == "internal" {
-                    decField = "internal_application_count"
-                }
-                if _, err := seekersColl.UpdateOne(sc,
-                    bson.M{"auth_user_id": userID, decField: bson.M{"$gt": 0}},
-                    bson.M{"$inc": bson.M{decField: -1}},
-                ); err != nil {
-                    return nil, err
-                }
+            update := bson.M{
+                "$set":         setFields,
+                "$setOnInsert": bson.M{
+                    "status":    "pending",
+                    "source":    sourceType,
+                    "view_link": mustSetViewLink,
+                },
+            }
+            opts := options.Update().SetUpsert(true)
+            if _, err := appsColl.UpdateOne(sc, filter, update, opts); err != nil {
+                return nil, err
+            }
 
-                return nil, nil
-            },
-        )
+            // Decrement seeker application count
+            decField := "internal_application_count"
+            if sourceType == "external" {
+                decField = "external_application_count"
+            }
+            _, err := seekersColl.UpdateOne(sc,
+                bson.M{"auth_user_id": userID, decField: bson.M{"$gt": 0}},
+                bson.M{"$inc": bson.M{decField: -1}},
+            )
+            return nil, err
+        })
         if err != nil {
             return fmt.Errorf("transaction failed: %w", err)
         }
     } else {
-        // Existing document: just update gen field, selected_date, and view_link if external
-        updateBson := bson.M{
-            "$set": bson.M{
-                fieldGen:        true,
-                "selected_date": time.Now(),
-            },
+        update := bson.M{"$set": bson.M{
+            fieldGen:        true,
+            "selected_date": time.Now(),
+        }}
+        if sourceType == "internal" {
+            update["$set"].(bson.M)["company"] = company
         }
         if mustSetViewLink {
-            updateBson["$set"].(bson.M)["view_link"] = true
+            update["$set"].(bson.M)["view_link"] = true
         }
-        if _, err := appsColl.UpdateOne(ctx, filter, updateBson); err != nil {
-            return fmt.Errorf("update existing application failed: %w", err)
+        if _, err := appsColl.UpdateOne(ctx, filter, update); err != nil {
+            return fmt.Errorf("failed updating existing app: %w", err)
         }
     }
-
     return nil
 }
+
 
 
 

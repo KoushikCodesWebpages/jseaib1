@@ -69,7 +69,7 @@ type SelectedJobApplication struct {
 	ViewLink              	bool               	`bson:"view_link" json:"view_link"`
 	Status					string				`bson:"status" json:"status"`
 	Source 					string				`bson:"source" json:"source"`
-	
+	Company					string				`bson:"company" json:"company"`
 }
 
 func CreateSelectedJobApplicationIndexes(collection *mongo.Collection) error {

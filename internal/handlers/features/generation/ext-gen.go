@@ -8,7 +8,7 @@ import (
     "fmt"
     "net/http"
     "time"
-
+    "log"
     "github.com/gin-gonic/gin"
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/mongo"
@@ -174,6 +174,19 @@ func (h *ExternalJobCVNCLGenerator) PostExternalCVNCL(c *gin.Context) {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save external job"})
         return
     }
+
+
+    // 🔁 Step 7: Also update company in selected_job_applications (external)
+    _, err := selColl.UpdateOne(
+        c,
+        bson.M{"auth_user_id": userID, "job_id": req.JobID, "source": "external"},
+        bson.M{"$set": bson.M{"company": req.Company}},
+    )
+    if err != nil {
+        log.Printf("❌ Failed to update company in selected_job_applications: %v\n", err)
+        // optionally continue or ignore
+    }
+
     // Step 6: response
     c.JSON(http.StatusOK, gin.H{
 		"job_id": req.JobID,

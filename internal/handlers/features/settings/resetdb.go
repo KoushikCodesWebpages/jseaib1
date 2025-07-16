@@ -71,6 +71,7 @@ func ResetDBHandler(c *gin.Context) {
 		"cv", 
 		"selected_job_applications",
 		"external_jobs",
+		"profile_pic",
 		// "jobs", 
 		"admins",
 		"match_scores", 
