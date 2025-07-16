@@ -229,7 +229,7 @@ func (r *UserRepo) CreateSeeker(input dto.SeekerSignUpInput, hashedPassword stri
 		AuthUserID:   authUserID,
 		Language:     "english",
 		Timezone:     "CET",
-		CookiePolicy: false,
+		CookiePolicy: true,
 		CreatedAt:    time.Now().UTC(),
 		UpdatedAt:    time.Now().UTC(),
 	}
@@ -241,10 +241,10 @@ func (r *UserRepo) CreateSeeker(input dto.SeekerSignUpInput, hashedPassword stri
 
 	notifications := models.NotificationSettings{
 		AuthUserID:      authUserID,
-		Subscription:    false,
-		RecommendedJobs: false,
-		GermanTest:      false,
-		Announcements:   false,
+		Subscription:    true,
+		RecommendedJobs: true,
+		GermanTest:      true,
+		Announcements:   true,
 		CreatedAt:       time.Now().UTC(),
 		UpdatedAt:       time.Now().UTC(),
 	}

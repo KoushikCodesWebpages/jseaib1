@@ -85,11 +85,11 @@ type ExternalJob struct {
 }
 
 
-// MatchScore for job seeker match score
 type MatchScore struct {
-	AuthUserID string 	 `json:"auth_user_id" bson:"auth_user_id"`
-	JobID      string    `bson:"job_id" json:"job_id"`          
-	MatchScore float64   `bson:"match_score" json:"match_score"` 
+    AuthUserID string             `json:"auth_user_id" bson:"auth_user_id"`
+    JobID      string             `json:"job_id" bson:"job_id"`
+    MatchScore float64            `json:"match_score" bson:"match_score"`
+    CreatedAt  time.Time          `json:"created_at" bson:"created_at"`  
 }
 
 func CreateMatchScoreIndexes(collection *mongo.Collection) error {

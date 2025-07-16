@@ -8,6 +8,7 @@ import (
 	"net/http"
     "math/rand"
     "math"
+    "time"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -110,6 +111,7 @@ func StartJobMatchScoreCalculation(c *gin.Context, db *mongo.Database, userID st
 			AuthUserID: userID,
 			JobID:      job.JobID,
 			MatchScore: score,
+            CreatedAt:  time.Now().UTC(),
 		})
 		if err != nil {
 			fmt.Println("error inserting match score:", err)

@@ -64,7 +64,7 @@ func (h *SeekerProfileHandler) GetDashboard(c *gin.Context) {
 
 	// ✅ Build dashboard only if profile is complete
 	resp := dto.DashboardResponse{
-		InfoBlocks:              h.buildInfo(*seeker),
+		InfoBlocks:              h.buildInfo(*seeker, db),
 		Profile:                 h.buildFields(*seeker),
 		Checklist:               h.buildChecklist(*seeker),
 		MiniNewJobsResponse:     h.buildMiniJobs(db,userID),
@@ -96,13 +96,27 @@ func (h *SeekerProfileHandler) fetchSeeker(c *gin.Context, db *mongo.Database, u
     return &s
 }
 
-func (h *SeekerProfileHandler) buildInfo(s models.Seeker) dto.InfoBlocks {
+func (h *SeekerProfileHandler) buildInfo(s models.Seeker, db *mongo.Database) dto.InfoBlocks {
+	matchColl := db.Collection("match_scores")
+
+    // 1️⃣ Calculate the 2-week cutoff date
+    twoWeeksAgo := time.Now().Add(-14 * 24 * time.Hour)
+
+    // 2️⃣ Build the filter for the last 2 weeks
+    filter := bson.M{
+        "auth_user_id": s.AuthUserID,
+        "created_at":   bson.M{"$gte": twoWeeksAgo},
+    }
+
+    // 3️⃣ Count matches in that period
+    topJobsCount, _ := matchColl.CountDocuments(context.TODO(), filter)
+  
 	return dto.InfoBlocks{
 		AuthUserID:                 s.AuthUserID,
 
         TotalApplications:          s.TotalApplications,
         WeeklyAppliedJobs:          s.WeeklyAppliedJobs,	
-		TopJobs:                    s.TopJobs,
+		TopJobs:                    int(topJobsCount),
 
 		SubscriptionTier:           s.SubscriptionTier,
         SubscriptionPeriod:         s.SubscriptionPeriod,
