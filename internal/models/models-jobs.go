@@ -98,6 +98,7 @@ func CreateMatchScoreIndexes(collection *mongo.Collection) error {
         Keys: bson.D{
             {Key: "auth_user_id", Value: 1},
             {Key: "job_id", Value: 1},
+			
         },
         Options: options.Index().SetUnique(true),
     }

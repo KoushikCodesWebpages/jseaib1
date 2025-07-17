@@ -104,6 +104,7 @@ func (h *SeekerProfileHandler) buildInfo(s models.Seeker, db *mongo.Database) dt
     filter := bson.M{
         "auth_user_id": s.AuthUserID,
         "created_at":   bson.M{"$gte": twoWeeksAgo},
+        "match_score":  bson.M{"$gt": 80}, 
     }
 
     // 3️⃣ Count matches in that period

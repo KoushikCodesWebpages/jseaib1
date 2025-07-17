@@ -46,10 +46,18 @@ func JobRetrievalHandler(c *gin.Context) {
 	offset := pagination["offset"].(int)
 	limit := pagination["limit"].(int)
 
-	// Step 1: Get all match scores for user, sorted by match_score DESC
+	// Check if recommended filter is requested
+	recommended := c.Query("recommended") == "true"
+
+	// Step 1: Get all match scores for user, optionally filtered by match_score >= 80
+	scoreFilter := bson.M{"auth_user_id": userID}
+	if recommended {
+		scoreFilter["match_score"] = bson.M{"$gte": 80}
+	}
+
 	matchCursor, err := db.Collection("match_scores").
 		Find(c,
-			bson.M{"auth_user_id": userID},
+			scoreFilter,
 			options.Find().SetSort(bson.D{{Key: "match_score", Value: -1}}),
 		)
 	if err != nil {
@@ -188,9 +196,14 @@ func JobRetrievalHandler(c *gin.Context) {
 	}
 
 	// Step 6: Build pagination
+	querySuffix := ""
+	if recommended {
+		querySuffix = "&recommended=true"
+	}
+
 	nextPage := ""
 	if end < total {
-		nextPage = fmt.Sprintf("/b1/api/jobs?offset=%d&limit=%d", end, limit)
+		nextPage = fmt.Sprintf("/b1/api/jobs?offset=%d&limit=%d%s", end, limit, querySuffix)
 	}
 	prevPage := ""
 	if offset > 0 {
@@ -198,7 +211,7 @@ func JobRetrievalHandler(c *gin.Context) {
 		if prevOffset < 0 {
 			prevOffset = 0
 		}
-		prevPage = fmt.Sprintf("/b1/api/jobs?offset=%d&limit=%d", prevOffset, limit)
+		prevPage = fmt.Sprintf("/b1/api/jobs?offset=%d&limit=%d%s", prevOffset, limit, querySuffix)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
