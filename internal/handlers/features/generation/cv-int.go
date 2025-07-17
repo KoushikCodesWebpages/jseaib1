@@ -61,10 +61,11 @@ func (h *InternalCVHandler) PostCV(c *gin.Context) {
     }
 
     // Step 2: Upsert first to validate limits and track usage
-	if err := upsertSelectedJobApp(db, userID, req.JobID, "cv", "internal"); err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-		return
-	}
+    if err := upsertSelectedJobApp(db, userID, req.JobID, "cv", "internal"); err != nil {
+        c.JSON(http.StatusForbidden, gin.H{"error": err.Error(), "issue": "Limit Reached"})
+        return
+    }
+
     // 3. Fetch supporting data
     var job models.Job
 	

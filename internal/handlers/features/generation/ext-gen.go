@@ -70,11 +70,11 @@ func (h *ExternalJobCVNCLGenerator) PostExternalCVNCL(c *gin.Context) {
     }
 
     if err := upsertSelectedJobApp(db, userID, req.JobID, "cover_letter", "external"); err != nil {
-        c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+        c.JSON(http.StatusForbidden, gin.H{"error": err.Error(),"issue":"Limit Exceeded"})
         return
     }
     if err := upsertSelectedJobApp(db, userID, req.JobID, "cv", "external"); err != nil {
-        c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+        c.JSON(http.StatusForbidden, gin.H{"error": err.Error(),"issue":"Limit Exceeded"})
         return
     }
 

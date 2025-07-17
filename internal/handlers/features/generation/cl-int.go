@@ -54,11 +54,10 @@ func (h *InternalCoverLetterHandler) PostCoverLetter(c *gin.Context) {
 	}
 
 	// Step 2: Upsert selection record FIRST (this checks quota and deducts if first-time)
-	if err := upsertSelectedJobApp(db, userID, req.JobID, "cover_letter", "internal"); err != nil {
-		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-		return
-	}
-
+    if err := upsertSelectedJobApp(db, userID, req.JobID, "cover_letter", "internal"); err != nil {
+        c.JSON(http.StatusForbidden, gin.H{"error": err.Error(), "issue": "Limit Reached"})
+        return
+    }
 	// Step 3: Fetch job, seeker and user details
 	var job models.Job
 	if err := jobColl.FindOne(c, bson.M{"job_id": req.JobID}).Decode(&job); err != nil {

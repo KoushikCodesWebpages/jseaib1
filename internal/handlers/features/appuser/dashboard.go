@@ -9,7 +9,6 @@ import (
 
     "RAAS/internal/dto"
     "RAAS/internal/handlers/repository"
-	"RAAS/internal/handlers/features/jobs"
     "RAAS/internal/models"
 
 
@@ -29,14 +28,7 @@ func (h *SeekerProfileHandler) GetDashboard(c *gin.Context) {
     db := c.MustGet("db").(*mongo.Database)
     userID := c.MustGet("userID").(string)
 
-    seeker := h.fetchSeeker(c, db, userID)
-    if seeker == nil {
-        c.JSON(http.StatusNotFound, gin.H{
-            "issue": "User profile data is missing.",
-            "error": "seeker_not_found",
-        })
-        return
-    }
+
 
     var timeline models.UserEntryTimeline
     if err := db.Collection("user_entry_timelines").
@@ -50,6 +42,7 @@ func (h *SeekerProfileHandler) GetDashboard(c *gin.Context) {
         return
     }
 
+
     if !timeline.Completed {
         c.JSON(http.StatusForbidden, gin.H{
             "issue": "Complete your profile setup to access the dashboard.",
@@ -58,16 +51,16 @@ func (h *SeekerProfileHandler) GetDashboard(c *gin.Context) {
         return
     }
 
-    completion, missing := repository.CalculateJobProfileCompletion(*seeker)
-    if completion == 100 || len(missing) == 0 {
-        if err := jobs.StartJobMatchScoreCalculation(c, db, userID); err != nil {
-            log.Printf("Error starting job match process: %v", err)
-            c.JSON(http.StatusInternalServerError, gin.H{
-                "error": "Failed to start job match process",
-            })
-            return
-        }
+    seeker := h.fetchSeeker(c, db, userID)
+    if seeker == nil {
+        c.JSON(http.StatusNotFound, gin.H{
+            "issue": "User profile data is missing.",
+            "error": "seeker_not_found",
+        })
+        return
     }
+
+
 
     resp := dto.DashboardResponse{
         InfoBlocks:              h.buildInfo(*seeker, db),

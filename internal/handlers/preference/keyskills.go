@@ -9,6 +9,8 @@ import (
 
     "RAAS/internal/dto"
     "RAAS/internal/models"
+    "RAAS/internal/handlers/repository"
+    "RAAS/internal/handlers/features/jobs"
 
     "github.com/gin-gonic/gin"
     "go.mongodb.org/mongo-driver/bson"
@@ -102,6 +104,18 @@ func (h *KeySkillsHandler) SetKeySkills(c *gin.Context) {
     // Mark timeline
     if _, err := timelines.UpdateOne(ctx, bson.M{"auth_user_id": userID}, bson.M{"$set": bson.M{"key_skills_completed": true}}); err != nil {
         log.Printf("Timeline update warning [SetKeySkills] user=%s: %v", userID, err)
+    }
+
+
+    completion, missing := repository.CalculateJobProfileCompletion(seeker)
+    if completion == 100 || len(missing) == 0 {
+        if err := jobs.StartJobMatchScoreCalculation(c, db, userID); err != nil {
+            log.Printf("Error starting job match process: %v", err)
+            c.JSON(http.StatusInternalServerError, gin.H{
+                "error": "Failed to start job match process",
+            })
+            return
+        }
     }
 
     c.JSON(http.StatusOK, gin.H{"issue": "Key skills " + op + " successfully"})
