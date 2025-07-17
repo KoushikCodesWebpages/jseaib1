@@ -37,6 +37,7 @@ type ApplicationTrackerResponse struct {
 	Source       string 	`json:"source"`
     SelectedDate time.Time  `json:"selected_date"`
 }
+
 func (h *ApplicationTrackerHandler) GetApplicationTracker(c *gin.Context) {
     db := c.MustGet("db").(*mongo.Database)
     userID := c.MustGet("userID").(string)
@@ -61,7 +62,6 @@ func (h *ApplicationTrackerHandler) GetApplicationTracker(c *gin.Context) {
     filter := bson.M{
         "auth_user_id":           userID,
         "cv_generated":           true,
-        "cover_letter_generated": true,
         "view_link":              true,
         "status":                 bson.M{"$ne": "deleted"},
     }

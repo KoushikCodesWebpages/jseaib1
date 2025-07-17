@@ -21,94 +21,94 @@ type PlanDTO struct {
 var explorePlanMatrix = map[string]map[string][]PlanDTO{
 	"free_monthly": {
 		"monthly": {
-			{Plan: "free", Price: 0, Period: "1 month", Status: "active"},
-			{Plan: "basic", Price: 25, Period: "1 month", Status: "upgrade"},
-			{Plan: "advanced", Price: 35, Period: "1 month", Status: "coming soon"},
-			{Plan: "premium", Price: 55, Period: "1 month", Status: "coming soon"},
+			{Plan: "free", Price: 0, Period: "monthly", Status: "active"},
+			{Plan: "basic", Price: 25, Period: "monthly", Status: "upgrade"},
+			{Plan: "advanced", Price: 35, Period: "monthly", Status: "coming soon"},
+			{Plan: "premium", Price: 55, Period: "monthly", Status: "coming soon"},
 		},
 		"quarterly": {
-			{Plan: "free", Price: 0, Period: "3 months", Status: "active"},
-			{Plan: "basic", Price: 68, Period: "3 months", Status: "upgrade"},
-			{Plan: "advanced", Price: 95, Period: "3 months", Status: "coming soon"},
-			{Plan: "premium", Price: 149, Period: "3 months", Status: "coming soon"},
+			{Plan: "free", Price: 0, Period: "quarterly", Status: "active"},
+			{Plan: "basic", Price: 68, Period: "quarterly", Status: "upgrade"},
+			{Plan: "advanced", Price: 95, Period: "quarterly", Status: "coming soon"},
+			{Plan: "premium", Price: 149, Period: "quarterly", Status: "coming soon"},
 		},
 	},
 	"basic_monthly": {
 		"monthly": {
-			{Plan: "basic", Price: 25, Period: "1 month", Status: "cancel"},
-			{Plan: "advanced", Price: 35, Period: "1 month", Status: "coming soon"},
-			{Plan: "premium", Price: 55, Period: "1 month", Status: "coming soon"},
+			{Plan: "basic", Price: 25, Period: "monthly", Status: "cancel"},
+			{Plan: "advanced", Price: 35, Period: "monthly", Status: "coming soon"},
+			{Plan: "premium", Price: 55, Period: "monthly", Status: "coming soon"},
 		},
 		"quarterly": {
-			{Plan: "basic", Price: 68, Period: "3 months", Status: "upgrade"},
-			{Plan: "advanced", Price: 95, Period: "3 months", Status: "coming soon"},
-			{Plan: "premium", Price: 149, Period: "3 months", Status: "coming soon"},
+			{Plan: "basic", Price: 68, Period: "quarterly", Status: "upgrade"},
+			{Plan: "advanced", Price: 95, Period: "quarterly", Status: "coming soon"},
+			{Plan: "premium", Price: 149, Period: "quarterly", Status: "coming soon"},
 		},
 	},
 
     	"basic_quarterly": {
 		"monthly": {
-			{Plan: "basic", Price: 25, Period: "1 month", Status: "downgrade"},
-			{Plan: "advanced", Price: 35, Period: "1 month", Status: "coming soon"},
-			{Plan: "premium", Price: 55, Period: "1 month", Status: "coming soon"},
+			{Plan: "basic", Price: 25, Period: "monthly", Status: "downgrade"},
+			{Plan: "advanced", Price: 35, Period: "monthly", Status: "coming soon"},
+			{Plan: "premium", Price: 55, Period: "monthly", Status: "coming soon"},
 		},
 		"quarterly": {
-			{Plan: "basic", Price: 68, Period: "3 months", Status: "cancel"},
-			{Plan: "advanced", Price: 95, Period: "3 months", Status: "coming soon"},
-			{Plan: "premium", Price: 149, Period: "3 months", Status: "coming soon"},
+			{Plan: "basic", Price: 68, Period: "quarterly", Status: "cancel"},
+			{Plan: "advanced", Price: 95, Period: "quarterly", Status: "coming soon"},
+			{Plan: "premium", Price: 149, Period: "quarterly", Status: "coming soon"},
 		},
 	},
 
 	"advanced_monthly": {
         "monthly": {
-			{Plan: "basic", Price: 25, Period: "1 month", Status: "downgrade"},
-			{Plan: "advanced", Price: 35, Period: "1 month", Status: "cancel"},
-			{Plan: "premium", Price: 55, Period: "1 month", Status: "coming soon"},
+			{Plan: "basic", Price: 25, Period: "monthly", Status: "downgrade"},
+			{Plan: "advanced", Price: 35, Period: "monthly", Status: "cancel"},
+			{Plan: "premium", Price: 55, Period: "monthly", Status: "coming soon"},
 		},
 		"quarterly": {
-			{Plan: "basic", Price: 68, Period: "3 months", Status: "downgrade"},
-			{Plan: "advanced", Price: 95, Period: "3 months", Status: "upgrade"},
-			{Plan: "premium", Price: 149, Period: "3 months", Status: "coming soon"},
+			{Plan: "basic", Price: 68, Period: "quarterly", Status: "downgrade"},
+			{Plan: "advanced", Price: 95, Period: "quarterly", Status: "upgrade"},
+			{Plan: "premium", Price: 149, Period: "quarterly", Status: "coming soon"},
 		},
 	},
 
     	"advanced_quarterly": {
 		"monthly": {
-			{Plan: "basic", Price: 25, Period: "1 month", Status: "downgrade"},
-			{Plan: "advanced", Price: 35, Period: "1 month", Status: "downgrade"},
-			{Plan: "premium", Price: 55, Period: "1 month", Status: "coming soon"},
+			{Plan: "basic", Price: 25, Period: "monthly", Status: "downgrade"},
+			{Plan: "advanced", Price: 35, Period: "monthly", Status: "downgrade"},
+			{Plan: "premium", Price: 55, Period: "monthly", Status: "coming soon"},
 		},
 		"quarterly": {
-			{Plan: "basic", Price: 68, Period: "3 months", Status: "downgrade"},
-			{Plan: "advanced", Price: 95, Period: "3 months", Status: "cancel"},
-			{Plan: "premium", Price: 149, Period: "3 months", Status: "coming soon"},
+			{Plan: "basic", Price: 68, Period: "quarterly", Status: "downgrade"},
+			{Plan: "advanced", Price: 95, Period: "quarterly", Status: "cancel"},
+			{Plan: "premium", Price: 149, Period: "quarterly", Status: "coming soon"},
 		},
 	},
     
 	"premium_monthly": {
         "monthly": {
-			{Plan: "basic", Price: 25, Period: "1 month", Status: "downgrade"},
-			{Plan: "advanced", Price: 35, Period: "1 month", Status: "downgrade"},
-			{Plan: "premium", Price: 55, Period: "1 month", Status: "cancel"},
+			{Plan: "basic", Price: 25, Period: "monthly", Status: "downgrade"},
+			{Plan: "advanced", Price: 35, Period: "monthly", Status: "downgrade"},
+			{Plan: "premium", Price: 55, Period: "monthly", Status: "cancel"},
 		},
 		"quarterly": {
-			{Plan: "basic", Price: 68, Period: "3 months", Status: "downgrade"},
-			{Plan: "advanced", Price: 95, Period: "3 months", Status: "downgrade"},
-			{Plan: "premium", Price: 149, Period: "3 months", Status: "coming soon"},
+			{Plan: "basic", Price: 68, Period: "quarterly", Status: "downgrade"},
+			{Plan: "advanced", Price: 95, Period: "quarterly", Status: "downgrade"},
+			{Plan: "premium", Price: 149, Period: "quarterly", Status: "coming soon"},
 		},
 	},
 
 
 	"premium_quarterly": {
 		"monthly": {
-			{Plan: "basic", Price: 25, Period: "1 month", Status: "downgrade"},
-			{Plan: "advanced", Price: 35, Period: "1 month", Status: "downgrade"},
-			{Plan: "premium", Price: 55, Period: "1 month", Status: "downgrade"},
+			{Plan: "basic", Price: 25, Period: "monthly", Status: "downgrade"},
+			{Plan: "advanced", Price: 35, Period: "monthly", Status: "downgrade"},
+			{Plan: "premium", Price: 55, Period: "monthly", Status: "downgrade"},
 		},
 		"quarterly": {
-			{Plan: "basic", Price: 68, Period: "3 months", Status: "downgrade"},
-			{Plan: "advanced", Price: 95, Period: "3 months", Status: "cancel"},
-			{Plan: "premium", Price: 149, Period: "3 months", Status: "cancel"},
+			{Plan: "basic", Price: 68, Period: "quarterly", Status: "downgrade"},
+			{Plan: "advanced", Price: 95, Period: "quarterly", Status: "cancel"},
+			{Plan: "premium", Price: 149, Period: "quarterly", Status: "cancel"},
 		},
 	},
 }

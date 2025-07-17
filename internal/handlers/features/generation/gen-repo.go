@@ -28,9 +28,8 @@ func upsertSelectedJobApp(
 
     appsColl := db.Collection("selected_job_applications")
     seekersColl := db.Collection("seekers")
-    jobsColl := db.Collection("jobs") // For internal job lookup
+    jobsColl := db.Collection("jobs")
 
-    // Only fetch `company` for internal jobs
     var company string
     if sourceType == "internal" {
         var intJob struct{ Company string `bson:"company"` }
@@ -55,18 +54,16 @@ func upsertSelectedJobApp(
         defer session.EndSession(ctx)
 
         _, err = session.WithTransaction(ctx, func(sc mongo.SessionContext) (interface{}, error) {
-            // Common update fields
             setFields := bson.M{
                 fieldGen:        true,
                 "selected_date": time.Now(),
             }
-            // Only set company if internal
             if sourceType == "internal" {
                 setFields["company"] = company
             }
 
             update := bson.M{
-                "$set":         setFields,
+                "$set": setFields,
                 "$setOnInsert": bson.M{
                     "status":    "pending",
                     "source":    sourceType,
@@ -78,12 +75,12 @@ func upsertSelectedJobApp(
                 return nil, err
             }
 
-            // Decrement seeker application count
+            // Only decrement on INSERT
             decField := "internal_application_count"
             if sourceType == "external" {
                 decField = "external_application_count"
             }
-            _, err := seekersColl.UpdateOne(sc,
+            _, err = seekersColl.UpdateOne(sc,
                 bson.M{"auth_user_id": userID, decField: bson.M{"$gt": 0}},
                 bson.M{"$inc": bson.M{decField: -1}},
             )
@@ -93,6 +90,7 @@ func upsertSelectedJobApp(
             return fmt.Errorf("transaction failed: %w", err)
         }
     } else {
+        // UPDATE path: no decrement
         update := bson.M{"$set": bson.M{
             fieldGen:        true,
             "selected_date": time.Now(),
@@ -103,15 +101,13 @@ func upsertSelectedJobApp(
         if mustSetViewLink {
             update["$set"].(bson.M)["view_link"] = true
         }
+
         if _, err := appsColl.UpdateOne(ctx, filter, update); err != nil {
             return fmt.Errorf("failed updating existing app: %w", err)
         }
     }
     return nil
 }
-
-
-
 
 func callAPI(apiURL, apiKey string, payload map[string]interface{}) (map[string]interface{}, error) {
     buf, _ := json.Marshal(payload)
