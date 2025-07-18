@@ -58,4 +58,5 @@ func SetupRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config) {
 	// EXPOSED
 	r.POST("/b1/api/reset-db", settings.ResetDBHandler)
 	r.POST("/b1/api/print-all-collections", settings.PrintAllCollectionsHandler)
+	r.POST("/b1/api/sign-up-bonus",settings.NewSettingsHandler().SignUpBenefitEmail)
 }
