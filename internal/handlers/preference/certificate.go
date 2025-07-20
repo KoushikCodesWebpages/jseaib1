@@ -22,82 +22,80 @@ type CertificateHandler struct{}
 func NewCertificateHandler() *CertificateHandler {
     return &CertificateHandler{}
 }
-
-// CreateCertificate handles creating or updating a certificate
 func (h *CertificateHandler) CreateCertificate(c *gin.Context) {
-    userID := c.MustGet("userID").(string)
-    db := c.MustGet("db").(*mongo.Database)
-    seekers := db.Collection("seekers")
-    timelines := db.Collection("user_entry_timelines")
+	userID := c.MustGet("userID").(string)
+	db := c.MustGet("db").(*mongo.Database)
+	seekers := db.Collection("seekers")
 
-    var input dto.CertificateRequest
-    if err := c.ShouldBindJSON(&input); err != nil {
-        log.Printf("Bind error [CreateCertificate] user=%s: %v", userID, err)
-        c.JSON(http.StatusBadRequest, gin.H{
-            "error": err.Error(),
-            "issue": "Please check your input and try again.",
-        })
-        return
-    }
+	var input dto.CertificateRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		log.Printf("❌ Bind error [CreateCertificate] user=%s: %v", userID, err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+			"issue": "Please check your input and try again.",
+		})
+		return
+	}
 
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-    var seeker models.Seeker
-    if err := seekers.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
-        log.Printf("DB fetch error [CreateCertificate] user=%s: %v", userID, err)
-        if err == mongo.ErrNoDocuments {
-            c.JSON(http.StatusNotFound, gin.H{
-                "error": err.Error(),
-                "issue": "Could not find your account. Please log in again.",
-            })
-        } else {
-            c.JSON(http.StatusInternalServerError, gin.H{
-                "error": err.Error(),
-                "issue": "Failed to retrieve your profile. Try again later.",
-            })
-        }
-        return
-    }
+	// 🔍 Fetch seeker
+	var seeker models.Seeker
+	if err := seekers.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
+		status := http.StatusInternalServerError
+		issue := "Failed to retrieve your profile. Try again later."
+		if err == mongo.ErrNoDocuments {
+			status = http.StatusNotFound
+			issue = "Could not find your account. Please log in again."
+		}
+		log.Printf("❌ DB fetch error [CreateCertificate] user=%s: %v", userID, err)
+		c.JSON(status, gin.H{"error": err.Error(), "issue": issue})
+		return
+	}
 
-    if err := repository.AppendToCertificates(&seeker, input); err != nil {
-        log.Printf("Append error [CreateCertificate] user=%s: %v", userID, err)
-        c.JSON(http.StatusInternalServerError, gin.H{
-            "error": err.Error(),
-            "issue": "Could not save your certificate details. Try again shortly.",
-        })
-        return
-    }
+	// ➕ Append to certificates
+	if err := repository.AppendToCertificates(&seeker, input); err != nil {
+		log.Printf("❌ Append error [CreateCertificate] user=%s: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"issue": "Could not save your certificate details. Try again shortly.",
+		})
+		return
+	}
 
-    updateResult, err := seekers.UpdateOne(ctx, bson.M{"auth_user_id": userID}, bson.M{"$set": bson.M{"certificates": seeker.Certificates}})
-    if err != nil {
-        log.Printf("DB update error [CreateCertificate] user=%s: %v", userID, err)
-        c.JSON(http.StatusInternalServerError, gin.H{
-            "error": err.Error(),
-            "issue": "Failed to save your certificate. Please try again.",
-        })
-        return
-    }
-    if updateResult.MatchedCount == 0 {
-        log.Printf("No document matched [CreateCertificate] user=%s", userID)
-        c.JSON(http.StatusNotFound, gin.H{
-            "error": "no seeker matched",
-            "issue": "Your account was not found to update.",
-        })
-        return
-    }
+	// 📝 Save updated certificates
+	update := bson.M{"$set": bson.M{"certificates": seeker.Certificates}}
+	updateResult, err := seekers.UpdateOne(ctx, bson.M{"auth_user_id": userID}, update)
+	if err != nil || updateResult.MatchedCount == 0 {
+		status := http.StatusInternalServerError
+		issue := "Failed to save your certificate. Please try again."
+		if updateResult.MatchedCount == 0 {
+			status = http.StatusNotFound
+			issue = "Your account was not found to update."
+		}
+		log.Printf("❌ DB update error [CreateCertificate] user=%s: %v", userID, err)
+		c.JSON(status, gin.H{"error": err.Error(), "issue": issue})
+		return
+	}
 
-    if _, err := timelines.UpdateOne(ctx, bson.M{"auth_user_id": userID}, bson.M{"$set": bson.M{"certificates_completed": true}}); err != nil {
-        log.Printf("Timeline update error [CreateCertificate] user=%s: %v", userID, err)
-        c.JSON(http.StatusInternalServerError, gin.H{
-            "error": err.Error(),
-            "issue": "Certificate saved, but progress tracking failed.",
-        })
-        return
-    }
+	// ✅ Timeline update
+	if err := func() error {
+		_, _, err := repository.UpdateTimelineStepAndCheckCompletion(ctx, db, userID, "certificates_completed")
+		return err
+	}(); err != nil {
+		log.Printf("⚠️ Timeline update error [CreateCertificate] user=%s: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"issue": "Certificate saved, but progress tracking failed.",
+		})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{"issue": "Certificate added successfully"})
+	// ✅ Success
+	c.JSON(http.StatusOK, gin.H{"issue": "Certificate added successfully"})
 }
+
 
 // GetCertificates retrieves a user's certificate records
 func (h *CertificateHandler) GetCertificates(c *gin.Context) {

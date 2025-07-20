@@ -26,11 +26,10 @@ func (h *AcademicsHandler) CreateAcademics(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	db := c.MustGet("db").(*mongo.Database)
 	seekers := db.Collection("seekers")
-	timelines := db.Collection("user_entry_timelines")
 
 	var input dto.AcademicsRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		log.Printf("Bind error [CreateAcademics] user=%s: %v", userID, err)
+		log.Printf("❌ Bind error [CreateAcademics] user=%s: %v", userID, err)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 			"issue": "Some fields are missing or contain invalid values.",
@@ -41,26 +40,28 @@ func (h *AcademicsHandler) CreateAcademics(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	// 1️⃣ Fetch seeker
 	var seeker models.Seeker
 	if err := seekers.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
+		status := http.StatusInternalServerError
+		issue := "Something went wrong while retrieving your profile. Please try again."
+
 		if err == mongo.ErrNoDocuments {
-			log.Printf("Seeker not found [CreateAcademics] user=%s", userID)
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": err.Error(),
-				"issue": "We couldn't find your account. Please contact support.",
-			})
-		} else {
-			log.Printf("DB fetch error [CreateAcademics] user=%s: %v", userID, err)
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": err.Error(),
-				"issue": "Something went wrong while retrieving your profile. Please try again.",
-			})
+			status = http.StatusNotFound
+			issue = "We couldn't find your account. Please contact support."
 		}
+
+		log.Printf("❌ DB fetch error [CreateAcademics] user=%s: %v", userID, err)
+		c.JSON(status, gin.H{
+			"error": err.Error(),
+			"issue": issue,
+		})
 		return
 	}
 
+	// 2️⃣ Update academics
 	if err := repository.AppendToAcademics(&seeker, input); err != nil {
-		log.Printf("Processing error [CreateAcademics] user=%s: %v", userID, err)
+		log.Printf("❌ Processing error [CreateAcademics] user=%s: %v", userID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 			"issue": "Could not save your educational record. Try again shortly.",
@@ -68,31 +69,31 @@ func (h *AcademicsHandler) CreateAcademics(c *gin.Context) {
 		return
 	}
 
-	updateResult, err := seekers.UpdateOne(ctx,
-		bson.M{"auth_user_id": userID},
-		bson.M{"$set": bson.M{"academics": seeker.Academics}},
-	)
-	if err != nil {
-		log.Printf("DB update error [CreateAcademics] user=%s: %v", userID, err)
-		c.JSON(http.StatusInternalServerError, gin.H{
+	update := bson.M{"$set": bson.M{"academics": seeker.Academics}}
+	updateResult, err := seekers.UpdateOne(ctx, bson.M{"auth_user_id": userID}, update)
+	if err != nil || updateResult.MatchedCount == 0 {
+		status := http.StatusInternalServerError
+		issue := "Failed to update your education records. Please retry."
+
+		if updateResult.MatchedCount == 0 {
+			status = http.StatusNotFound
+			issue = "Your account couldn't be updated. Please refresh and try again."
+		}
+
+		log.Printf("❌ DB update error [CreateAcademics] user=%s: %v", userID, err)
+		c.JSON(status, gin.H{
 			"error": err.Error(),
-			"issue": "Failed to update your education records. Please retry.",
-		})
-		return
-	}
-	if updateResult.MatchedCount == 0 {
-		log.Printf("No document matched [CreateAcademics] user=%s", userID)
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "no seeker updated for " + userID,
-			"issue": "Your account couldn't be updated. Please refresh and try again.",
+			"issue": issue,
 		})
 		return
 	}
 
-	if _, err := timelines.UpdateOne(ctx, bson.M{"auth_user_id": userID},
-		bson.M{"$set": bson.M{"academics_completed": true}},
-	); err != nil {
-		log.Printf("Timeline update error [CreateAcademics] user=%s: %v", userID, err)
+	// 3️⃣ Update timeline
+	if err := func() error {
+		_, _, err := repository.UpdateTimelineStepAndCheckCompletion(ctx, db, userID, "academics_completed")
+		return err
+	}(); err != nil {
+		log.Printf("⚠️ Timeline update error [CreateAcademics] user=%s: %v", userID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 			"issue": "Education saved, but progress tracking failed.",
@@ -100,8 +101,12 @@ func (h *AcademicsHandler) CreateAcademics(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"issue": "Academics added successfully"})
+	// ✅ Success
+	c.JSON(http.StatusOK, gin.H{
+		"issue": "Academics added successfully",
+	})
 }
+
 
 // GetAcademics retrieves a user's academics records
 func (h *AcademicsHandler) GetAcademics(c *gin.Context) {

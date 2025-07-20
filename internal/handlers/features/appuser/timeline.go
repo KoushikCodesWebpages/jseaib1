@@ -45,6 +45,7 @@ func GetNextEntryStep() gin.HandlerFunc {
 			return
 		}
 
+		log.Printf("🧭 Updated Timeline for user %s: %+v", userID, timeline)
 		steps := []struct {
 			Name      string
 			Completed bool

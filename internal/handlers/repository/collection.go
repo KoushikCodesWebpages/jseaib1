@@ -12,8 +12,116 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 )
+// UpdateTimelineStepAndCheckCompletion sets a specific step as completed,
+// and if all required steps are done, marks the timeline as fully completed.
+func UpdateTimelineStepAndCheckCompletion(
+	ctx context.Context,
+	db *mongo.Database,
+	userID string,
+	stepField string,
+) (bool, string, error) {
+	timelines := db.Collection("user_entry_timelines")
+
+	// --- Build $set stage dynamically ---
+	setStage := bson.D{{Key: "updated_at", Value: time.Now()}}
+	if stepField != "" {
+		setStage = append(setStage, bson.E{Key: stepField, Value: true})
+	}
+
+	// --- Update and calculate completion ---
+	updatePipeline := mongo.Pipeline{
+		{{Key: "$set", Value: setStage}},
+		{{
+			Key: "$set",
+			Value: bson.D{{
+				Key: "completed",
+				Value: bson.D{{
+					Key: "$cond",
+					Value: bson.A{
+						bson.D{{Key: "$and", Value: bson.A{
+							bson.D{{Key: "$cond", Value: bson.A{"$personal_info_required", "$personal_info_completed", true}}},
+							bson.D{{Key: "$cond", Value: bson.A{"$work_experiences_required", "$work_experiences_completed", true}}},
+							bson.D{{Key: "$cond", Value: bson.A{"$academics_required", "$academics_completed", true}}},
+							bson.D{{Key: "$cond", Value: bson.A{"$past_projects_required", "$past_projects_completed", true}}},
+							bson.D{{Key: "$cond", Value: bson.A{"$certificates_required", "$certificates_completed", true}}},
+							bson.D{{Key: "$cond", Value: bson.A{"$languages_required", "$languages_completed", true}}},
+							bson.D{{Key: "$cond", Value: bson.A{"$job_titles_required", "$job_titles_completed", true}}},
+							bson.D{{Key: "$cond", Value: bson.A{"$key_skills_required", "$key_skills_completed", true}}},
+						}}},
+						true,
+						"$completed",
+					},
+				}},
+			}},
+		}},
+	}
+
+	// --- Return projection ---
+	opts := options.FindOneAndUpdate().
+		SetReturnDocument(options.After).
+		SetProjection(bson.M{
+			"auth_user_id":               1,
+			"completed":                  1,
+			"personal_info_required":     1,
+			"personal_info_completed":    1,
+			"work_experiences_required":  1,
+			"work_experiences_completed": 1,
+			"academics_required":         1,
+			"academics_completed":        1,
+			"past_projects_required":     1,
+			"past_projects_completed":    1,
+			"certificates_required":      1,
+			"certificates_completed":     1,
+			"languages_required":         1,
+			"languages_completed":        1,
+			"job_titles_required":        1,
+			"job_titles_completed":       1,
+			"key_skills_required":        1,
+			"key_skills_completed":       1,
+		})
+
+	var t models.UserEntryTimeline
+	if err := timelines.FindOneAndUpdate(ctx,
+		bson.M{"auth_user_id": userID},
+		updatePipeline,
+		opts,
+	).Decode(&t); err != nil {
+		return false, "", fmt.Errorf("timeline update failed: %w", err)
+	}
+
+	// 🔍 Log full timeline state
+	// log.Printf("🧭 Updated Timeline for user %s: %+v", userID, t)
+
+	// 🔍 Check first required-but-incomplete step
+	type step struct {
+		required  bool
+		completed bool
+		fieldName string
+	}
+	steps := []step{
+		{t.PersonalInfoRequired, t.PersonalInfoCompleted, "personal_info"},
+		{t.WorkExperiencesRequired, t.WorkExperiencesCompleted, "work_experiences"},
+		{t.AcademicsRequired, t.AcademicsCompleted, "academics"},
+		{t.PastProjectsRequired, t.PastProjectsCompleted, "past_projects"},
+		{t.CertificatesRequired, t.CertificatesCompleted, "certificates"},
+		{t.LanguagesRequired, t.LanguagesCompleted, "languages"},
+		{t.JobTitlesRequired, t.JobTitlesCompleted, "preferred_job_titles"},
+		{t.KeySkillsRequired, t.KeySkillsCompleted, "key_skills"},
+	}
+
+	for _, s := range steps {
+		if s.required && !s.completed {
+			log.Printf("🟥 Step incomplete for user %s: %s", userID, s.fieldName)
+			return t.Completed, s.fieldName, nil
+		}
+	}
+
+	// log.Printf("✅ All steps completed for user %s", userID)
+	return t.Completed, "", nil
+}
 
 // Fetch seeker only (no skill extraction)
 func GetSeekerData(db *mongo.Database, userID string) (models.Seeker, error) {

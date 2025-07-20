@@ -2,7 +2,6 @@ package auth
 
 import (
 	"RAAS/internal/dto"
-	"RAAS/internal/models"
 	"RAAS/core/security"
 	"RAAS/internal/handlers/features/jobs"
 	"RAAS/internal/handlers/repository"
@@ -35,7 +34,6 @@ func SeekerLogin(c *gin.Context) {
 
     // 2️⃣ Setup DB & repos
     db := c.MustGet("db").(*mongo.Database)
-    seekersColl := db.Collection("seekers")
     authColl := db.Collection("auth_users")
     userRepo := NewUserRepo(db)
 
@@ -74,13 +72,6 @@ if err != nil {
         log.Printf("⚠️ Failed to update last login metadata for %s: %v", user.AuthUserID, err)
     }
 
-    // 5️⃣ Check entry timeline
-    var timeline models.UserEntryTimeline
-    progress := false
-    if err := db.Collection("entry_progress_timelines").FindOne(ctx, bson.M{"auth_user_id": user.AuthUserID}).Decode(&timeline); err == nil && timeline.Completed {
-        progress = true
-    }
-
     // 6️⃣ Generate JWT
     token, err := security.GenerateJWT(user.AuthUserID, user.Email, "seeker")
     if err != nil {
@@ -88,24 +79,12 @@ if err != nil {
         return
     }
 
-    // 7️⃣ Load seeker profile
-    var seeker models.Seeker
-    if err := seekersColl.FindOne(ctx, bson.M{"auth_user_id": user.AuthUserID}).Decode(&seeker); err != nil {
-        if err == mongo.ErrNoDocuments {
-            c.JSON(http.StatusNotFound, gin.H{"issue": "Seeker not found"})
-            log.Printf("Seeker not found for auth_user_id: %s", user.AuthUserID)
-        } else {
-            c.JSON(http.StatusInternalServerError, gin.H{"issue": "Failed to retrieve seeker"})
-            log.Printf("Failed to retrieve seeker for auth_user_id: %s, Error: %v", user.AuthUserID, err)
-        }
-        return
+    completed, next_step, err := repository.UpdateTimelineStepAndCheckCompletion(ctx, db, user.AuthUserID, "")
+    if err != nil {
+        log.Printf("Timeline update error [SetKeySkills] user=%s: %v", user.AuthUserID, err)
     }
 
-    // 8️⃣ Trigger job match score if profile complete
-    matchscore := false
-    completion, missing := repository.CalculateJobProfileCompletion(seeker)
-    if completion == 100 || len(missing) == 0 {
-        matchscore = true
+    if completed{
         if err = jobs.StartJobMatchScoreCalculation(c, db, user.AuthUserID); err != nil {
             log.Printf("Error starting job match process: %v", err)
             c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start job match process"})
@@ -122,8 +101,9 @@ if err != nil {
             "auth_user_id":   user.AuthUserID,
             "role":           user.Role,
             "email_verified": user.EmailVerified,
-            "progress":       progress,
-            "match_score":    matchscore,
+            "progress_completed":     completed,
+            "next_step": next_step,
+            
         },
     })
 }

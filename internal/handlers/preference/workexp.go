@@ -28,11 +28,10 @@ func (h *WorkExperienceHandler) CreateWorkExperience(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
 	db := c.MustGet("db").(*mongo.Database)
 	seekersCollection := db.Collection("seekers")
-	entryTimelineCollection := db.Collection("user_entry_timelines")
 
 	var input dto.WorkExperienceRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		log.Printf("Bind error for user %s: %v", userID, err)
+		log.Printf("❌ Bind error for user %s: %v", userID, err)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 			"issue": "Some required fields are missing or invalid.",
@@ -43,54 +42,61 @@ func (h *WorkExperienceHandler) CreateWorkExperience(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	// 1️⃣ Fetch Seeker
 	var seeker models.Seeker
 	if err := seekersCollection.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
-		if err == mongo.ErrNoDocuments {
-			log.Printf("Seeker not found for user %s", userID)
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": err.Error(),
-				"issue": "No account found. It might have been removed or reset.",
-			})
-		} else {
-			log.Printf("DB read error for user %s: %v", userID, err)
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": err.Error(),
-				"issue": "Could not retrieve your profile. Please try again.",
-			})
-		}
-		return
-	}
+		status := http.StatusInternalServerError
+		issue := "Could not retrieve your profile. Please try again."
 
-	if err := repository.AppendToWorkExperience(&seeker, input); err != nil {
-		log.Printf("Processing error for user %s: %v", userID, err)
-		c.JSON(http.StatusInternalServerError, gin.H{
+		if err == mongo.ErrNoDocuments {
+			status = http.StatusNotFound
+			issue = "No account found. It might have been removed or reset."
+		}
+
+		log.Printf("❌ Seeker fetch failed for user %s: %v", userID, err)
+		c.JSON(status, gin.H{
 			"error": err.Error(),
-			"issue": "Something went wrong adding your work experience. Try again.",
+			"issue": issue,
 		})
 		return
 	}
 
+	// 2️⃣ Append Experience
+	if err := repository.AppendToWorkExperience(&seeker, input); err != nil {
+		log.Printf("❌ Processing error for user %s: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"issue": "Failed to process your work experience. Try again.",
+		})
+		return
+	}
+
+	// 3️⃣ Update Seeker Record
 	update := bson.M{"$set": bson.M{"work_experiences": seeker.WorkExperiences}}
 	updateResult, err := seekersCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, update)
-	if err != nil {
-		log.Printf("DB update error for user %s: %v", userID, err)
-		c.JSON(http.StatusInternalServerError, gin.H{
+	if err != nil || updateResult.MatchedCount == 0 {
+		log.Printf("❌ Seeker update failed for user %s: %v", userID, err)
+		status := http.StatusInternalServerError
+		issue := "Unable to save your work experience."
+
+		if updateResult.MatchedCount == 0 {
+			status = http.StatusNotFound
+			issue = "Your account wasn't found to update. Please refresh and try again."
+		}
+
+		c.JSON(status, gin.H{
 			"error": err.Error(),
-			"issue": "Unable to save your work experience right now.",
-		})
-		return
-	}
-	if updateResult.MatchedCount == 0 {
-		log.Printf("Update matched zero docs for user %s", userID)
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "no seeker updated for " + userID,
-			"issue": "Your account wasn't found to update. Please refresh and try again.",
+			"issue": issue,
 		})
 		return
 	}
 
-	if _, err := entryTimelineCollection.UpdateOne(ctx, bson.M{"auth_user_id": userID}, bson.M{"$set": bson.M{"work_experiences_completed": true}}); err != nil {
-		log.Printf("Timeline update error for user %s: %v", userID, err)
+	// 4️⃣ Mark Step as Completed
+	if err := func() error {
+		_, _, err := repository.UpdateTimelineStepAndCheckCompletion(ctx, db, userID, "work_experiences_completed")
+		return err
+	}(); err != nil {
+		log.Printf("⚠️ Timeline update failed for user %s: %v", userID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 			"issue": "Work experience saved, but progress tracking failed.",
@@ -98,8 +104,12 @@ func (h *WorkExperienceHandler) CreateWorkExperience(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"issue": "Work experience added successfully"})
+	// ✅ Success
+	c.JSON(http.StatusOK, gin.H{
+		"issue": "Work experience added successfully.",
+	})
 }
+
 
 // GetWorkExperience retrieves all work experiences for the user
 func (h *WorkExperienceHandler) GetWorkExperience(c *gin.Context) {

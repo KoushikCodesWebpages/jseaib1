@@ -26,139 +26,145 @@ func NewLanguageHandler() *LanguageHandler {
 }
 
 func (h *LanguageHandler) CreateLanguage(c *gin.Context) {
-    userID := c.MustGet("userID").(string)
-    db := c.MustGet("db").(*mongo.Database)
-    seekers := db.Collection("seekers")
-    timelines := db.Collection("user_entry_timelines")
+	userID := c.MustGet("userID").(string)
+	db := c.MustGet("db").(*mongo.Database)
+	seekers := db.Collection("seekers")
 
-    var input dto.LanguageRequest
-    if err := c.ShouldBindJSON(&input); err != nil {
-        log.Printf("Bind error [CreateLanguage] user=%s: %v", userID, err)
-        c.JSON(http.StatusBadRequest, gin.H{
-            "error": err.Error(),
-            "issue": "Some required fields are missing or invalid.",
-        })
-        return
-    }
+	var input dto.LanguageRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		log.Printf("❌ Bind error [CreateLanguage] user=%s: %v", userID, err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+			"issue": "Some required fields are missing or invalid.",
+		})
+		return
+	}
 
-    validLevels := map[string]bool{
-        "beginner":     true,
-        "intermediate": true,
-        "fluent":       true,
-        "native":       true,
-    }
-    if !validLevels[input.ProficiencyLevel] {
-        msg := fmt.Sprintf("invalid proficiency level: %s", input.ProficiencyLevel)
-        log.Printf("Validation error [CreateLanguage] user=%s: %s", userID, msg)
-        c.JSON(http.StatusBadRequest, gin.H{
-            "error": msg,
-            "issue": "Proficiency level must be one of: beginner, intermediate, fluent, native.",
-        })
-        return
-    }
+	// ✅ Validate proficiency level
+	validLevels := map[string]bool{
+		"beginner": true, "intermediate": true, "fluent": true, "native": true,
+	}
+	if !validLevels[input.ProficiencyLevel] {
+		msg := fmt.Sprintf("Invalid proficiency level: %s", input.ProficiencyLevel)
+		log.Printf("❌ Validation error [CreateLanguage] user=%s: %s", userID, msg)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": msg,
+			"issue": "Proficiency level must be one of: beginner, intermediate, fluent, native.",
+		})
+		return
+	}
 
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-    var seeker models.Seeker
-    if err := seekers.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
-        log.Printf("DB fetch error [CreateLanguage] user=%s: %v", userID, err)
-        if err == mongo.ErrNoDocuments {
-            c.JSON(http.StatusNotFound, gin.H{
-                "error": err.Error(),
-                "issue": "No account found. It might have been removed or reset.",
-            })
-        } else {
-            c.JSON(http.StatusInternalServerError, gin.H{
-                "error": err.Error(),
-                "issue": "Could not retrieve your profile. Please try again.",
-            })
-        }
-        return
-    }
+	// 🔍 Fetch seeker
+	var seeker models.Seeker
+	if err := seekers.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
+		status := http.StatusInternalServerError
+		issue := "Could not retrieve your profile. Please try again."
 
-    if err := repository.AppendToLanguages(&seeker, input, ""); err != nil {
-        log.Printf("Append error [CreateLanguage] user=%s: %v", userID, err)
-        c.JSON(http.StatusInternalServerError, gin.H{
-            "error": err.Error(),
-            "issue": "Could not save your language details. Try again shortly.",
-        })
-        return
-    }
+		if err == mongo.ErrNoDocuments {
+			status = http.StatusNotFound
+			issue = "No account found. It might have been removed or reset."
+		}
 
-    updateResult, err := seekers.UpdateOne(ctx, bson.M{"auth_user_id": userID}, bson.M{"$set": bson.M{"languages": seeker.Languages}})
-    if err != nil {
-        log.Printf("DB update error [CreateLanguage] user=%s: %v", userID, err)
-        c.JSON(http.StatusInternalServerError, gin.H{
-            "error": err.Error(),
-            "issue": "Failed to update your language records. Please retry.",
-        })
-        return
-    }
-    if updateResult.MatchedCount == 0 {
-        log.Printf("No document updated [CreateLanguage] user=%s", userID)
-        c.JSON(http.StatusNotFound, gin.H{
-            "error": "no seeker updated for " + userID,
-            "issue": "Your account couldn't be updated. Please refresh and try again.",
-        })
-        return
-    }
+		log.Printf("❌ DB fetch error [CreateLanguage] user=%s: %v", userID, err)
+		c.JSON(status, gin.H{"error": err.Error(), "issue": issue})
+		return
+	}
 
-    if _, err := timelines.UpdateOne(ctx, bson.M{"auth_user_id": userID}, bson.M{"$set": bson.M{"languages_completed": true}}); err != nil {
-        log.Printf("Timeline update error [CreateLanguage] user=%s: %v", userID, err)
-        c.JSON(http.StatusInternalServerError, gin.H{
-            "error": err.Error(),
-            "issue": "Language added, but progress tracking failed.",
-        })
-        return
-    }
+	// ➕ Add language to seeker
+	if err := repository.AppendToLanguages(&seeker, input, ""); err != nil {
+		log.Printf("❌ Append error [CreateLanguage] user=%s: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"issue": "Could not save your language details. Try again shortly.",
+		})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{"issue": "Language added successfully"})
+	// 📝 Update languages in DB
+	update := bson.M{"$set": bson.M{"languages": seeker.Languages}}
+	updateResult, err := seekers.UpdateOne(ctx, bson.M{"auth_user_id": userID}, update)
+	if err != nil || updateResult.MatchedCount == 0 {
+		status := http.StatusInternalServerError
+		issue := "Failed to update your language records. Please retry."
+
+		if updateResult.MatchedCount == 0 {
+			status = http.StatusNotFound
+			issue = "Your account couldn't be updated. Please refresh and try again."
+		}
+
+		log.Printf("❌ Update error [CreateLanguage] user=%s: %v", userID, err)
+		c.JSON(status, gin.H{"error": err.Error(), "issue": issue})
+		return
+	}
+
+	// ✅ Update timeline progress
+	if err := func() error {
+		_, _, err := repository.UpdateTimelineStepAndCheckCompletion(ctx, db, userID, "languages_completed")
+		return err
+	}(); err != nil {
+		log.Printf("⚠️ Timeline update error [CreateLanguage] user=%s: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"issue": "Language added, but progress tracking failed.",
+		})
+		return
+	}
+
+	// ✅ Success
+	c.JSON(http.StatusOK, gin.H{"issue": "Language added successfully"})
 }
 
 // GetLanguages handles the retrieval of a user's languages
 func (h *LanguageHandler) GetLanguages(c *gin.Context) {
-    userID := c.MustGet("userID").(string)
-    db := c.MustGet("db").(*mongo.Database)
-    seekers := db.Collection("seekers")
+	userID := c.MustGet("userID").(string)
+	db := c.MustGet("db").(*mongo.Database)
+	seekers := db.Collection("seekers")
 
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-    var seeker models.Seeker
-    if err := seekers.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker); err != nil {
-        log.Printf("DB fetch error [GetLanguages] user=%s: %v", userID, err)
-        if err == mongo.ErrNoDocuments {
-            c.JSON(http.StatusNotFound, gin.H{
-                "error": err.Error(),
-                "issue": "Account not found. Please refresh or contact support.",
-            })
-        } else {
-            c.JSON(http.StatusInternalServerError, gin.H{
-                "error": err.Error(),
-                "issue": "Failed to retrieve your profile. Please try again.",
-            })
-        }
-        return
-    }
+	var seeker models.Seeker
+	err := seekers.FindOne(ctx, bson.M{"auth_user_id": userID}).Decode(&seeker)
+	if err != nil {
+		status := http.StatusInternalServerError
+		issue := "Failed to retrieve your profile. Please try again."
 
-    if len(seeker.Languages) == 0 {
-        c.JSON(http.StatusNoContent, gin.H{"message": "No languages found"})
-        return
-    }
+		if err == mongo.ErrNoDocuments {
+			status = http.StatusNotFound
+			issue = "Account not found. Please refresh or contact support."
+		}
 
-    languages, err := repository.GetLanguages(&seeker)
-    if err != nil {
-        log.Printf("Processing error [GetLanguages] user=%s: %v", userID, err)
-        c.JSON(http.StatusInternalServerError, gin.H{
-            "error": err.Error(),
-            "issue": "We couldn't load your language list. Please try again.",
-        })
-        return
-    }
+		log.Printf("❌ DB fetch error [GetLanguages] user=%s: %v", userID, err)
+		c.JSON(status, gin.H{
+			"error": err.Error(),
+			"issue": issue,
+		})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{"languages": languages})
+	if len(seeker.Languages) == 0 {
+		c.JSON(http.StatusNoContent, gin.H{"message": "No languages found"})
+		return
+	}
+
+	languages, err := repository.GetLanguages(&seeker)
+	if err != nil {
+		log.Printf("❌ Processing error [GetLanguages] user=%s: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"issue": "We couldn't load your language list. Please try again.",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"languages": languages,
+	})
 }
+
 
 func (h *LanguageHandler) UpdateLanguage(c *gin.Context) {
 	userID := c.MustGet("userID").(string)
