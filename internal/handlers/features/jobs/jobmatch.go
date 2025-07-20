@@ -57,70 +57,101 @@ func (h *MatchScoreHandler) GetMatchScores(c *gin.Context) {
 }
 
 func StartJobMatchScoreCalculation(c *gin.Context, db *mongo.Database, userID string) error {
-	fmt.Println("Starting job match scoring for user:", userID)
+	fmt.Println("🚀 Starting job match scoring for user:", userID)
 
-	// 1. Fetch seeker data
 	seeker, err := repository.GetSeekerData(db, userID)
 	if err != nil {
 		return fmt.Errorf("failed to fetch seeker data: %v", err)
 	}
 
-	// 2. Collect preferred titles
 	preferredTitles := repository.CollectPreferredTitles(seeker)
 	if len(preferredTitles) == 0 {
 		return fmt.Errorf("no preferred job titles found for seeker")
 	}
 
-	// 3. Build job filter
-	filter := repository.BuildJobFilter(preferredTitles, nil, "") // nil = no applied filter, "" = all languages
-
-	// 4. Query all matching jobs
+	filter := repository.BuildJobFilter(preferredTitles, nil, "")
 	cursor, err := db.Collection("jobs").Find(c, filter)
 	if err != nil {
 		return fmt.Errorf("failed to query jobs: %v", err)
 	}
 	defer cursor.Close(c)
 
-	// 5. Iterate through jobs
 	matchCollection := db.Collection("match_scores")
+
+	type JobWrapper struct {
+		Job models.Job
+	}
+
+	var jobs []JobWrapper
 	for cursor.Next(c) {
 		var job models.Job
 		if err := cursor.Decode(&job); err != nil {
-			fmt.Println("error decoding job:", err)
+			fmt.Println("❌ Error decoding job:", err)
 			continue
 		}
+		jobs = append(jobs, JobWrapper{Job: job})
+	}
 
-		// 6. Check if match score already exists
-		exists, _ := matchCollection.CountDocuments(c, bson.M{
-			"auth_user_id": userID,
-			"job_id":       job.JobID,
-		})
-		if exists > 0 {
-			continue // skip if already calculated
-		}
+	// Concurrency settings
+	const maxWorkers = 8
+	jobChan := make(chan JobWrapper, len(jobs))
+	errChan := make(chan error, len(jobs))
 
-		// 7. Calculate match score
-		score, err := CalculateMatchScore(seeker, job)
-		if err != nil {
-			fmt.Println("error calculating score for job:", job.JobID, err)
-			continue
-		}
+	// Start workers
+	for i := 0; i < maxWorkers; i++ {
+		go func() {
+			for wrapper := range jobChan {
+				job := wrapper.Job
 
-		// 8. Insert new match score
-		_, err = matchCollection.InsertOne(c, models.MatchScore{
-			AuthUserID: userID,
-			JobID:      job.JobID,
-			MatchScore: score,
-            CreatedAt:  time.Now().UTC(),
-		})
-		if err != nil {
-			fmt.Println("error inserting match score:", err)
-			continue
-		}
+				// 1️⃣ Skip if match score already exists
+				count, _ := matchCollection.CountDocuments(c, bson.M{
+					"auth_user_id": userID,
+					"job_id":       job.JobID,
+				})
+				if count > 0 {
+					continue
+				}
+
+				// 2️⃣ Compute match score
+				score, err := CalculateMatchScore(seeker, job)
+				if err != nil {
+					errChan <- fmt.Errorf("❌ Error calculating score for job %s: %v", job.JobID, err)
+					continue
+				}
+
+				// 3️⃣ Store match score
+				_, err = matchCollection.InsertOne(c, models.MatchScore{
+					AuthUserID: userID,
+					JobID:      job.JobID,
+					MatchScore: score,
+					CreatedAt:  time.Now().UTC(),
+				})
+				if err != nil {
+					errChan <- fmt.Errorf("❌ Error inserting match score for job %s: %v", job.JobID, err)
+					continue
+				}
+			}
+		}()
+	}
+
+	// Feed jobs into the channel
+	for _, job := range jobs {
+		jobChan <- job
+	}
+	close(jobChan)
+
+	// Wait for all workers to finish
+	time.Sleep(2 * time.Second) // quick wait; for larger batches use sync.WaitGroup instead
+
+	// Collect errors if any
+	close(errChan)
+	for err := range errChan {
+		fmt.Println(err)
 	}
 
 	return nil
 }
+
 
 // Configuration: section weights sum to 1.0
 var (
