@@ -33,6 +33,18 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
 	seekerProfileHandler := appuser.NewSeekerProfileHandler()
 	dashBoardRoute := r.Group("/b1/dashboard", auth)
 	dashBoardRoute.GET("", seekerProfileHandler.GetDashboard)
+	
+	dashboardV2 := appuser.NewDashboardV2Handler()
+	v2 := r.Group("/b1/newdashboard",auth)
+	{
+		v2.GET("/mini-status", dashboardV2.GetStatus)
+		v2.GET("/mini-info", dashboardV2.GetInfoBlock)
+		v2.GET("/mini-profile", dashboardV2.GetProfile)
+		v2.GET("/mini-checklist", dashboardV2.GetChecklist)
+		v2.GET("/mini-jobs", dashboardV2.GetMiniNewJobs)
+		v2.GET("/mini-tests", dashboardV2.GetMiniTestSummary)
+	}
+
 
 
 	savedJobsHandler := appuser.NewSavedJobsHandler()

@@ -255,3 +255,125 @@ func ptrVal(s *string) string {
     }
     return ""
 }
+
+
+
+
+type DashboardV2Handler struct{}
+func NewDashboardV2Handler() *DashboardV2Handler {
+    return &DashboardV2Handler{}
+}
+
+func (h *DashboardV2Handler) isTimelineComplete(c *gin.Context, db *mongo.Database, userID string) (bool, error) {
+    var timeline models.UserEntryTimeline
+    err := db.Collection("user_entry_timelines").
+        FindOne(c, bson.M{"auth_user_id": userID}).
+        Decode(&timeline)
+
+    if err != nil {
+        return false, err
+    }
+
+    return timeline.Completed, nil
+}
+func (h *DashboardV2Handler) withTimelineCheck(c *gin.Context, handlerFunc func()) {
+    db := c.MustGet("db").(*mongo.Database)
+    userID := c.MustGet("userID").(string)
+
+    complete, err := h.isTimelineComplete(c, db, userID)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error":   "timeline_check_failed",
+            "details": err.Error(),
+        })
+        return
+    }
+
+    if !complete {
+        c.JSON(http.StatusForbidden, gin.H{
+            "error": "profile_incomplete",
+            "issue": "Complete your profile setup to access this data.",
+        })
+        return
+    }
+
+    handlerFunc()
+}
+func (h *DashboardV2Handler) GetInfoBlock(c *gin.Context) {
+    h.withTimelineCheck(c, func() {
+        db := c.MustGet("db").(*mongo.Database)
+        userID := c.MustGet("userID").(string)
+
+        seeker := NewSeekerProfileHandler().fetchSeeker(c, db, userID)
+        if seeker == nil {
+            c.JSON(http.StatusNotFound, gin.H{"error": "seeker_not_found"})
+            return
+        }
+
+        info := NewSeekerProfileHandler().buildInfo(*seeker, db)
+        c.JSON(http.StatusOK, gin.H{"info_block": info})
+    })
+}
+
+func (h *DashboardV2Handler) GetProfile(c *gin.Context) {
+    h.withTimelineCheck(c, func() {
+        db := c.MustGet("db").(*mongo.Database)
+        userID := c.MustGet("userID").(string)
+
+        seeker := NewSeekerProfileHandler().fetchSeeker(c, db, userID)
+        if seeker == nil {
+            c.JSON(http.StatusNotFound, gin.H{"error": "seeker_not_found"})
+            return
+        }
+
+        profile := NewSeekerProfileHandler().buildFields(*seeker)
+        c.JSON(http.StatusOK, gin.H{"profile": profile})
+    })
+}
+
+func (h *DashboardV2Handler) GetChecklist(c *gin.Context) {
+    h.withTimelineCheck(c, func() {
+        db := c.MustGet("db").(*mongo.Database)
+        userID := c.MustGet("userID").(string)
+
+        checklist := NewSeekerProfileHandler().buildChecklist(c, db, userID)
+        c.JSON(http.StatusOK, gin.H{"checklist": checklist})
+    })
+}
+
+func (h *DashboardV2Handler) GetMiniNewJobs(c *gin.Context) {
+    h.withTimelineCheck(c, func() {
+        db := c.MustGet("db").(*mongo.Database)
+        userID := c.MustGet("userID").(string)
+
+        jobs := NewSeekerProfileHandler().buildMiniJobs(db, userID)
+        c.JSON(http.StatusOK, gin.H{"new_jobs": jobs})
+    })
+}
+
+func (h *DashboardV2Handler) GetMiniTestSummary(c *gin.Context) {
+    h.withTimelineCheck(c, func() {
+        summary := NewSeekerProfileHandler().buildMiniTestSummary()
+        c.JSON(http.StatusOK, gin.H{"test_summary": summary})
+    })
+}
+
+func (h *DashboardV2Handler) GetStatus(c *gin.Context) {
+    db := c.MustGet("db").(*mongo.Database)
+    userID := c.MustGet("userID").(string)
+
+    complete, err := h.isTimelineComplete(c, db, userID)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error":   "status_check_failed",
+            "details": err.Error(),
+        })
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "profile_completed": complete,
+        "user_id":           userID,
+    })
+}
+
