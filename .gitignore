@@ -1,0 +1,9 @@
+.env
+.air.toml
+tmp/*
+!tmp/.gitkeep
+setup.sh
+Dockerfile
+prod.sh
+scripts.txt
+trim.sh
