@@ -15,21 +15,23 @@ var MongoDB *mongo.Database
 
 // Collection name constants
 const (
-	CollectionAuthUsers            = "auth_users"
-	CollectionSeekers              = "seekers"
-	CollectionAdmins               = "admins"
-	CollectionSavedJobs            = "saved_jobs"
-	CollectionUserEntryTimelines   = "user_entry_timelines"
-	CollectionSelectedJobApps      = "selected_job_applications"
-	CollectionCoverLetters         = "cover_letters"
-	CollectionCV                   = "cv"
-	CollectionMatchScores          = "match_scores"
-	CollectionExtJobs			   = "external_jobs"
-	CollectionJobs                 = "jobs"
-	CollectionCounter			   = "counters"
-	CollectionProfilePic		   = "profile_pic"
-	CollectionPreferences		   = "preferences"
-	CollectionNotifications		   = "notifications"
+	CollectionAuthUsers            	= "auth_users"
+	CollectionSeekers              	= "seekers"
+	CollectionAdmins               	= "admins"
+	CollectionSavedJobs            	= "saved_jobs"
+	CollectionUserEntryTimelines   	= "user_entry_timelines"
+	CollectionSelectedJobApps      	= "selected_job_applications"
+	CollectionCoverLetters         	= "cover_letters"
+	CollectionCV                   	= "cv"
+	CollectionMatchScores          	= "match_scores"
+	CollectionExtJobs			   	= "external_jobs"
+	CollectionJobs                 	= "jobs"
+	CollectionCounter			   	= "counters"
+	CollectionProfilePic		   	= "profile_pic"
+	CollectionPreferences		   	= "preferences"
+	CollectionNotifications		   	= "notifications"
+	CollectionQuestions				= "questions"
+	CollectionResults				= "exam_results"
 )
 
 // InitDB connects to MongoDB, initializes indexes, and optionally creates collections
@@ -50,7 +52,7 @@ func InitDB(cfg *config.Config) (*mongo.Client, *mongo.Database) {
 	log.Println("✅ MongoDB connection established")
 
 	// resetCollections()
-	// Explicit collection creation (optional)
+	// // Explicit collection creation (optional)
 	// CreateCollectionsExplicitly([]string{
 	// 	CollectionAuthUsers,
 	// 	CollectionSeekers,
@@ -63,13 +65,15 @@ func InitDB(cfg *config.Config) (*mongo.Client, *mongo.Database) {
 	// 	CollectionMatchScores,
 	// 	CollectionProfilePic,
 	// 	CollectionJobs,
-	// CollectionExtJobs
+	// 	CollectionExtJobs,
 	// 	CollectionPreferences,
 	// 	CollectionNotifications,
+	// 	CollectionQuestions,
+	// 	CollectionResults,
 	
 	// })
 	
-	// // Create indexes
+	// // // Create indexes
 	// CreateAllIndexes()
 
 	return client, MongoDB
@@ -90,21 +94,23 @@ func CreateCollectionsExplicitly(collectionNames []string) {
 // Optional: Reset/Drop collections (dev/test use only)
 func resetCollections() {
 	collections := []string{
-		CollectionAuthUsers,
-		CollectionSeekers,
-		CollectionAdmins,
-		CollectionSavedJobs,
-		CollectionUserEntryTimelines,
-		CollectionSelectedJobApps,
-		CollectionCoverLetters,
-		CollectionCV,
-		CollectionMatchScores,
-		// CollectionJobs,
-		CollectionExtJobs,
-		CollectionCounter,
-		CollectionProfilePic,
-		CollectionNotifications,
-		CollectionPreferences,
+		// CollectionAuthUsers,
+		// CollectionSeekers,
+		// CollectionAdmins,
+		// CollectionSavedJobs,
+		// CollectionUserEntryTimelines,
+		// CollectionSelectedJobApps,
+		// CollectionCoverLetters,
+		// CollectionCV,
+		// CollectionMatchScores,
+		// // CollectionJobs,
+		// CollectionExtJobs,
+		// CollectionCounter,
+		// CollectionProfilePic,
+		// CollectionNotifications,
+		// CollectionPreferences,
+		// CollectionQuestions,
+		CollectionResults,
 	}
 
 	for _, col := range collections {
@@ -152,6 +158,8 @@ func CreateAllIndexes() {
 		{CollectionProfilePic,CreateProfilePicIndexes},
 		{CollectionNotifications, CreateUserNotificationsIndexes},
 		{CollectionPreferences, CreateUserPreferencesIndexes},
+		{CollectionQuestions,CreateQuestionIndexes},
+		{CollectionResults,CreateResultsIndexes},
 	}
 
 	for _, task := range tasks {

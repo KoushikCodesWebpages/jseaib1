@@ -1,6 +1,7 @@
 package dto
+
 import (
-    "time"
+	"time"
 )
 
 type InfoBlocks struct {
@@ -100,3 +101,4 @@ type BillingInfoDTO struct {
 	BillingEmail  string        `json:"billing_email"`
 	Invoices      []InvoiceDTO  `json:"invoices"`
 }
+

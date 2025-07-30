@@ -81,7 +81,7 @@ func (h *ApplicationTrackerHandler) GetApplicationTracker(c *gin.Context) {
     cursor, err := selColl.Find(
         context.TODO(),
         filter,
-        options.Find().SetSort(bson.D{{"selected_date", -1}}),
+        options.Find().SetSort(bson.D{{Key: "selected_date", Value: -1}}),
         options.Find().SetSkip(int64(skip)),
         options.Find().SetLimit(int64(size)),
     )

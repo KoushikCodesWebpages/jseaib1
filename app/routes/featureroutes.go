@@ -8,8 +8,11 @@ import (
     "RAAS/internal/handlers/features/appuser"
     "RAAS/internal/handlers/features/generation"
     "RAAS/internal/handlers/features/jobs"
+    "RAAS/internal/handlers/features/exam"
     "RAAS/internal/handlers/features/payment"
     "RAAS/internal/handlers/features/settings"
+
+
     "github.com/gin-gonic/gin"
     "go.mongodb.org/mongo-driver/mongo"
 )
@@ -91,7 +94,7 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
     route.PUT("/cv",extGenHandler.PutCV)
     route.PUT("/cl",extGenHandler.PutCoverLetter)
 
-    //PAYMENT routes
+    //PAYMENT Routes
     paymentHandler := payment.NewPaymentHandler()
     payRoutes := r.Group("/b1/payment", auth)
     {
@@ -100,12 +103,36 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
     }
     r.POST("/b1/payment/webhook", paymentHandler.Webhook)
 
-    // // JOB METADATA routes
+    // // JOB METADATA Routes
     matchHandler := jobs.NewMatchScoreHandler()
     r.Group("/b1/matchscores", auth).
     GET("", matchHandler.GetMatchScores)
 
-    // SETTINGS routes
+     // // === EXAMS===
+    //EXAMS Routes
+    examGroup := r.Group("/b2/exam")
+
+    questionsHandler := exam.NewQuestionsHandler()
+    questionsRoutes := examGroup.Group("/questions",auth,paginate)
+    {
+        questionsRoutes.POST("",questionsHandler.PostQuestion)
+        questionsRoutes.GET("", questionsHandler.GetQuestions)
+        questionsRoutes.PUT("/:question_id", questionsHandler.UpdateQuestion)
+        questionsRoutes.PATCH("/:question_id", questionsHandler.PatchQuestion)
+        questionsRoutes.DELETE("/:question_id", questionsHandler.DeleteQuestion)
+    }
+
+    examPortalHandler :=exam.NewExamPortalHandler()
+    examPortalRoutes := examGroup.Group("/portal",auth)
+    {
+        examPortalRoutes.POST("/input",examPortalHandler.GenerateRandomExam)
+        examPortalRoutes.POST("/results/submit",examPortalHandler.ProcessExamResults)
+        examPortalRoutes.GET("/results/list",examPortalHandler.GetFilteredExamResults)
+        examPortalRoutes.GET("/results/recent",examPortalHandler.GetRecentExamResults)
+    }
+
+
+    // SETTINGS Routes
     settingsHandler := settings.NewSettingsHandler()
     settingsRoutes := r.Group("/b1/settings", auth)
     {
