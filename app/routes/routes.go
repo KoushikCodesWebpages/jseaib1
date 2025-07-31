@@ -30,7 +30,6 @@ func SetupRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config) {
 	
     // --- CORS middleware ---
     origins := strings.Split(cfg.Project.CORSAllowedOrigins, ",")
-	log.Printf("origins: %v", origins)
     for i := range origins {
         origins[i] = strings.TrimSpace(origins[i])
     }
