@@ -47,9 +47,11 @@ func SetupRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config) {
 
     // --- Static Routes & Fallback ---
     r.Static("/assets", "./public/dist/assets")
-    r.GET("/", func(c *gin.Context) { c.File("./public/dist/index.html") })
+    r.GET("/", func(c *gin.Context) {
+    c.String(200, "This website’s backend is completely built and hosted by Koushik.")
+})
     r.GET("/reset-password", func(c *gin.Context) { c.File("./app/templates/resetpassword.html") })
-    r.NoRoute(func(c *gin.Context) { c.File("./app/templates/noroutes.html") })
+
 
     // --- API Routes ---
     SetupAuthRoutes(r, cfg)
