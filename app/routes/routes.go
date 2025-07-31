@@ -8,6 +8,7 @@ import (
 
 	"strings"
 	"time"
+	"log"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -15,48 +16,48 @@ import (
 )
 
 func SetupRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config) {
-	// CORS
+    // --- Debug Logging Middleware ---
+    r.Use(func(c *gin.Context) {
+        origin := c.Request.Header.Get("Origin")
+        method := c.Request.Method
+        rawPath := c.Request.URL.Path
+        matched := c.FullPath() // empty if route not matched
+        log.Printf("➡️ Incoming %s %s │ Origin: %s │ FullPath: %q", method, rawPath, origin, matched)
+        c.Next()
+        acao := c.Writer.Header().Get("Access-Control-Allow-Origin")
+        log.Printf("⬅️ After handlers │ ACAO header: %q", acao)
+    })
 
-	origins := strings.Split(cfg.Project.CORSAllowedOrigins, ",")
-	for i, origin := range origins {
-		origins[i] = strings.TrimSpace(origin)
-	}
+    // --- CORS middleware ---
+    origins := strings.Split(cfg.Project.CORSAllowedOrigins, ",")
+    for i := range origins {
+        origins[i] = strings.TrimSpace(origins[i])
+    }
+    corsConfig := cors.Config{
+        AllowOrigins:     origins,
+        AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+        AllowHeaders:     []string{"Content-Type", "Content-Length", "Accept-Encoding", "Authorization", "Accept", "Origin", "Cache-Control", "X-Requested-With"},
+        AllowCredentials: true,
+        MaxAge:           12 * time.Hour,
+    }
+    r.Use(cors.New(corsConfig))
 
-	corsConfig := cors.Config{
-		AllowOrigins:  origins,
-		AllowMethods:  []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:  []string{"Content-Type", "Content-Length", "Accept-Encoding", "Authorization", "Accept", "Origin", "Cache-Control", "X-Requested-With"},
-		AllowCredentials: true,
-		MaxAge: 12 * time.Hour,
-	}
+    // --- Optional: Wrap DB middleware afterward ---
+    r.Use(middleware.InjectDB(client))
 
-	//INJECT
-	r.Use(cors.New(corsConfig))
-	r.Use(middleware.InjectDB(client))
+    // --- Static Routes & Fallback ---
+    r.Static("/assets", "./public/dist/assets")
+    r.GET("/", func(c *gin.Context) { c.File("./public/dist/index.html") })
+    r.GET("/reset-password", func(c *gin.Context) { c.File("./app/templates/resetpassword.html") })
+    r.NoRoute(func(c *gin.Context) { c.File("./app/templates/noroutes.html") })
 
+    // --- API Routes ---
+    SetupAuthRoutes(r, cfg)
+    SetupDataEntryRoutes(r, client, cfg)
+    SetupFeatureRoutes(r, client, cfg)
 
-	//STATIC
-	r.Static("/assets", "./public/dist/assets")
-	r.GET("/", func(c *gin.Context) {
-		c.File("./public/dist/index.html")
-	})
-	r.GET("/reset-password", func(c *gin.Context) {
-		c.File("./app/templates/resetpassword.html")
-	})
-
-	r.NoRoute(func(c *gin.Context) {
-		c.File("./app/templates/noroutes.html")
-	})
-	
-	
-
-	// SETUP
-	SetupAuthRoutes(r, cfg)
-	SetupDataEntryRoutes(r, client, cfg)
-	SetupFeatureRoutes(r, client, cfg)
-
-	// EXPOSED
-	r.POST("/b1/api/reset-db", settings.ResetDBHandler)
-	r.POST("/b1/api/print-all-collections", settings.PrintAllCollectionsHandler)
-	r.POST("/b1/api/sign-up-bonus",settings.NewSettingsHandler().SignUpBenefitEmail)
+    // --- Exposed admin routes ---
+    r.POST("/b1/api/reset-db", settings.ResetDBHandler)
+    r.POST("/b1/api/print-all-collections", settings.PrintAllCollectionsHandler)
+    r.POST("/b1/api/sign-up-bonus", settings.NewSettingsHandler().SignUpBenefitEmail)
 }
