@@ -27,9 +27,10 @@ func SetupRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config) {
         acao := c.Writer.Header().Get("Access-Control-Allow-Origin")
         log.Printf("⬅️ After handlers │ ACAO header: %q", acao)
     })
-
+	
     // --- CORS middleware ---
     origins := strings.Split(cfg.Project.CORSAllowedOrigins, ",")
+	log.Printf("origins: %v", origins)
     for i := range origins {
         origins[i] = strings.TrimSpace(origins[i])
     }

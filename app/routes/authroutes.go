@@ -6,8 +6,7 @@ import (
 	"RAAS/core/middlewares"
 	"RAAS/internal/handlers/auth"
 	// "RAAS/internal/handlers/oauth"
-	"github.com/gin-contrib/sessions/cookie"
-	"github.com/gin-contrib/sessions"
+
 
 	"time"
 
@@ -22,8 +21,7 @@ func SetupAuthRoutes(r *gin.Engine, cfg *config.Config) {
 	// forgotPassLimiter := middleware.RateLimiterMiddleware(3, time.Minute)
 	resetPassLimiter := middleware.RateLimiterMiddleware(100, time.Hour* 24)
 	verifyEmailLimiter := middleware.RateLimiterMiddleware(10, time.Minute)
-	store := cookie.NewStore([]byte("your-secret-key"))
-    r.Use(sessions.Sessions("session", store))
+
 
 	authRoutes := r.Group("/b1/auth")
 	{
