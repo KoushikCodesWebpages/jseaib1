@@ -52,6 +52,7 @@ func InitDB(cfg *config.Config) (*mongo.Client, *mongo.Database) {
 	log.Println("✅ MongoDB connection established")
 
 	// resetCollections()
+
 	// // Explicit collection creation (optional)
 	// CreateCollectionsExplicitly([]string{
 	// 	CollectionAuthUsers,
@@ -110,7 +111,7 @@ func resetCollections() {
 		// CollectionNotifications,
 		// CollectionPreferences,
 		// CollectionQuestions,
-		CollectionResults,
+		// CollectionResults,
 	}
 
 	for _, col := range collections {

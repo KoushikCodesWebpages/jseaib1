@@ -33,17 +33,11 @@ func (h *ExamPortalHandler) GenerateRandomExam(c *gin.Context) {
 	db := c.MustGet("db").(*mongo.Database)
 
 	// ✅ STEP 1: Get current user ID (assumes JWT middleware sets it in context)
-	userID, exists := c.Get("auth_user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{
-			"issue": "unauthorized",
-			"error": "auth_user_id_missing",
-		})
-		return
-	}
+	userID := c.MustGet("userID").(string)
+
 
 	// ✅ STEP 2: Fetch seeker
-	seeker, err := repository.GetSeekerData(db, userID.(string))
+	seeker, err := repository.GetSeekerData(db, userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"issue": "seeker_not_found",
@@ -153,6 +147,20 @@ func (h *ExamPortalHandler) GenerateRandomExam(c *gin.Context) {
 		examResp.EndsAt = now.Add(time.Duration(duration) * time.Minute).Format(time.RFC3339)
 	}
 
+			// ✅ Reduce ProficiencyTest count by 1
+	_, err = db.Collection("seekers").UpdateOne(
+		context.TODO(),
+		bson.M{"auth_user_id": userID},
+		bson.M{"$inc": bson.M{"proficiency_test": -1}},
+	)
+	if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"issue": "failed_to_update_test_quota",
+				"error": err.Error(),
+			})
+			return
+		}
+		
 	c.JSON(http.StatusOK, examResp)
 }
 

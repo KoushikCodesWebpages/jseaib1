@@ -29,16 +29,6 @@ func PurgeOldDeletedUsers(ctx context.Context, db *mongo.Database) error {
 
     cutoff := time.Now().Add(-30 * 24 * time.Hour)
     // cutoff := time.Now().Add( 5 * time.Second)
-
-
-
-
-
-
-    
-
-
-
     
     cursor, err := db.Collection("auth_users").
         Find(ctx, bson.M{"is_deleted": true, "deleted_at": bson.M{"$lte": cutoff}})
