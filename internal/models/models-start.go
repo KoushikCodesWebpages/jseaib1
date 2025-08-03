@@ -53,28 +53,28 @@ func InitDB(cfg *config.Config) (*mongo.Client, *mongo.Database) {
 
 	// resetCollections()
 
-	// // Explicit collection creation (optional)
+	// // // Explicit collection creation (optional)
 	// CreateCollectionsExplicitly([]string{
-	// 	CollectionAuthUsers,
-	// 	CollectionSeekers,
-	// 	CollectionAdmins,
-	// 	CollectionSavedJobs,
-	// 	CollectionUserEntryTimelines,
-	// 	CollectionSelectedJobApps,
-	// 	CollectionCoverLetters,
-	// 	CollectionCV,
+	// // 	CollectionAuthUsers,
+	// // 	CollectionSeekers,
+	// // 	CollectionAdmins,
+	// // 	CollectionSavedJobs,
+	// // 	CollectionUserEntryTimelines,
+	// // 	CollectionSelectedJobApps,
+	// // 	CollectionCoverLetters,
+	// // 	CollectionCV,
 	// 	CollectionMatchScores,
-	// 	CollectionProfilePic,
+	// // 	CollectionProfilePic,
 	// 	CollectionJobs,
-	// 	CollectionExtJobs,
-	// 	CollectionPreferences,
-	// 	CollectionNotifications,
-	// 	CollectionQuestions,
-	// 	CollectionResults,
+	// // 	CollectionExtJobs,
+	// // 	CollectionPreferences,
+	// // 	CollectionNotifications,
+	// // 	CollectionQuestions,
+	// // 	CollectionResults,
 	
 	// })
 	
-	// // // Create indexes
+	// // // // Create indexes
 	// CreateAllIndexes()
 
 	return client, MongoDB
@@ -103,8 +103,8 @@ func resetCollections() {
 		// CollectionSelectedJobApps,
 		// CollectionCoverLetters,
 		// CollectionCV,
-		// CollectionMatchScores,
-		// // CollectionJobs,
+		CollectionMatchScores,
+		CollectionJobs,
 		// CollectionExtJobs,
 		// CollectionCounter,
 		// CollectionProfilePic,
@@ -146,21 +146,21 @@ type IndexCreationTask struct {
 // Register all index tasks
 func CreateAllIndexes() {
 	tasks := []IndexCreationTask{
-		{CollectionAuthUsers, CreateAuthUserIndexes},
-		{CollectionSeekers, CreateSeekerIndexes},
-		{CollectionAdmins, CreateAdminIndexes},
-		{CollectionSavedJobs, CreateSavedJobApplicationIndexes},
-		{CollectionUserEntryTimelines, CreateUserEntryTimelineIndexes},
-		{CollectionSelectedJobApps, CreateSelectedJobApplicationIndexes},
-		{CollectionCoverLetters, CreateCoverLetterIndexes},
-		{CollectionCV, CreateCVIndexes},
+		// {CollectionAuthUsers, CreateAuthUserIndexes},
+		// {CollectionSeekers, CreateSeekerIndexes},
+		// {CollectionAdmins, CreateAdminIndexes},
+		// {CollectionSavedJobs, CreateSavedJobApplicationIndexes},
+		// {CollectionUserEntryTimelines, CreateUserEntryTimelineIndexes},
+		// {CollectionSelectedJobApps, CreateSelectedJobApplicationIndexes},
+		// {CollectionCoverLetters, CreateCoverLetterIndexes},
+		// {CollectionCV, CreateCVIndexes},
 		{CollectionMatchScores, CreateMatchScoreIndexes},
 		{CollectionJobs, CreateJobIndexes},
-		{CollectionProfilePic,CreateProfilePicIndexes},
-		{CollectionNotifications, CreateUserNotificationsIndexes},
-		{CollectionPreferences, CreateUserPreferencesIndexes},
-		{CollectionQuestions,CreateQuestionIndexes},
-		{CollectionResults,CreateResultsIndexes},
+		// {CollectionProfilePic,CreateProfilePicIndexes},
+		// {CollectionNotifications, CreateUserNotificationsIndexes},
+		// {CollectionPreferences, CreateUserPreferencesIndexes},
+		// {CollectionQuestions,CreateQuestionIndexes},
+		// {CollectionResults,CreateResultsIndexes},
 	}
 
 	for _, task := range tasks {

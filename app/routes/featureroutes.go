@@ -60,10 +60,16 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
     // === JOBS ===
     r.Group("/b1/api/jobs", auth, paginate).
         GET("", jobs.JobRetrievalHandler)
+        
+
+    // jobshandler := jobs.NewJobsHandler()    
+    // r.Group("/b1/jobs",auth,paginate).GET("",jobshandler.GetAllJobs)
+    // r.Group("/b1/jobs/delete",auth,paginate).DELETE("",jobshandler.DeleteAllJobs)
 
     linkProviderHandler := jobs.NewLinkProviderHandler()
     r.Group("/b1/provide-link", auth).
         POST("", linkProviderHandler.PostAndGetLink)
+
 
     applicationTrackerHandler := appuser.NewApplicationTrackerHandler()
     r.Group("/b1/api/application-tracker",auth,paginate).

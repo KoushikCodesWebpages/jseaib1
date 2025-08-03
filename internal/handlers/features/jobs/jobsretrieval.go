@@ -50,7 +50,13 @@ func JobRetrievalHandler(c *gin.Context) {
 	recommended := c.Query("recommended") == "true"
 
 	// Step 1: Get all match scores for user, optionally filtered by match_score >= 80
-	scoreFilter := bson.M{"auth_user_id": userID}
+	// Step 1: Get all match scores for user, optionally filtered by match_score >= 80
+	scoreFilter := bson.M{
+		"auth_user_id": userID,
+		"created_at": bson.M{
+			"$gte": time.Now().AddDate(0, 0, -14),
+		},
+	}
 	if recommended {
 		scoreFilter["match_score"] = bson.M{"$gte": 80}
 	}
