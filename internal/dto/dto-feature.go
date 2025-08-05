@@ -22,6 +22,28 @@ type InfoBlocks struct {
 
 }
 
+type NewInfoBlocks struct {
+    AuthUserID                 string    `json:"auth_user_id"`
+    TotalApplications          int       `json:"total_applications"`
+    WeeklyAppliedJobs          int       `json:"weekly_applied_jobs"`
+    TopJobs                    int       `json:"top_jobs"`
+    SubscriptionTier           string    `json:"subscription_tier"`
+    SubscriptionPeriod         string    `json:"subscription_period"`
+    SubscriptionIntervalStart  time.Time `json:"subscription_interval_start"`
+    SubscriptionIntervalEnd    time.Time `json:"subscription_interval_end"`
+    InternalApplications       int       `json:"internal_applications"`
+    ExternalApplications       int       `json:"external_applications"`
+    ProficiencyTest            int       `json:"proficiency_test"`
+
+    InternalLimit              int `json:"internal_limit"`
+    ExternalLimit              int `json:"external_limit"`
+    TestLimit                  int `json:"test_limit"`
+    InternalRemainingPercent   int `json:"internal_remaining_percent"`
+    ExternalRemainingPercent   int `json:"external_remaining_percent"`
+    TestRemainingPercent       int `json:"test_remaining_percent"`
+}
+
+
 type Profile struct {
     PhotoUrl                string 	     `json:"photo_url,omitempty"`
     FirstName               string           `json:"first_name"`

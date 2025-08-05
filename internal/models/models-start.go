@@ -32,6 +32,8 @@ const (
 	CollectionNotifications		   	= "notifications"
 	CollectionQuestions				= "questions"
 	CollectionResults				= "exam_results"
+	CollectionAnnouncements		   	= "announcements"
+	
 )
 
 // InitDB connects to MongoDB, initializes indexes, and optionally creates collections
@@ -54,7 +56,7 @@ func InitDB(cfg *config.Config) (*mongo.Client, *mongo.Database) {
 	// resetCollections()
 
 	// // // Explicit collection creation (optional)
-	// CreateCollectionsExplicitly([]string{
+	CreateCollectionsExplicitly([]string{
 	// // 	CollectionAuthUsers,
 	// // 	CollectionSeekers,
 	// // 	CollectionAdmins,
@@ -66,13 +68,14 @@ func InitDB(cfg *config.Config) (*mongo.Client, *mongo.Database) {
 	// 	CollectionMatchScores,
 	// // 	CollectionProfilePic,
 	// 	CollectionJobs,
+	CollectionAnnouncements,
 	// // 	CollectionExtJobs,
 	// // 	CollectionPreferences,
 	// // 	CollectionNotifications,
 	// // 	CollectionQuestions,
 	// // 	CollectionResults,
 	
-	// })
+	})
 	
 	// // // // Create indexes
 	// CreateAllIndexes()
@@ -103,8 +106,8 @@ func resetCollections() {
 		// CollectionSelectedJobApps,
 		// CollectionCoverLetters,
 		// CollectionCV,
-		CollectionMatchScores,
-		CollectionJobs,
+		// CollectionMatchScores,
+		// CollectionJobs,
 		// CollectionExtJobs,
 		// CollectionCounter,
 		// CollectionProfilePic,

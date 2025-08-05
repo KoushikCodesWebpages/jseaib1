@@ -4,10 +4,13 @@ import (
     "log"
     "net/http"
     "time"
+    "strings"
     "fmt"
+    "math"
     "RAAS/internal/dto"
     "RAAS/internal/handlers/repository"
     "RAAS/internal/models"
+
     "github.com/gin-gonic/gin"
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/mongo"
@@ -74,6 +77,9 @@ func (h *SeekerProfileHandler) fetchSeeker(c *gin.Context, db *mongo.Database, u
     }
     return &s
 }
+
+
+
 func (h *SeekerProfileHandler) buildInfo(s models.Seeker, db *mongo.Database) dto.InfoBlocks {
     matchColl := db.Collection("match_scores")
     // :one: Calculate the 2-week cutoff date
@@ -100,6 +106,107 @@ func (h *SeekerProfileHandler) buildInfo(s models.Seeker, db *mongo.Database) dt
         ProficiencyTest:            s.ProficiencyTest,
     }
 }
+
+
+type Limits struct {
+    Internal int
+    External int
+    Tests    int
+}
+
+type UsageStats struct {
+    Used    int
+    Total   int
+    Percent int
+}
+
+func calculateUsage(used, total int) UsageStats {
+    if total == 0 {
+        return UsageStats{Used: used, Total: total, Percent: 100}
+    }
+
+    if used > total {
+        return UsageStats{Used: used, Total: total, Percent: 100}
+    }
+
+    remaining := total - used
+    percent := int(math.Round(float64(remaining) / float64(total) * 100))
+    return UsageStats{Used: used, Total: total, Percent: percent}
+}
+
+
+func getLimits(tier, period string) Limits {
+    key := strings.ToLower(tier) + "_" + strings.ToLower(period)
+    switch key {
+    case "basic_monthly":
+        return Limits{150, 25, 3}
+    case "advanced_monthly":
+        return Limits{240, 35, 5}
+    case "premium_monthly":
+        return Limits{360, 75, 10}
+    case "basic_quarterly":
+        return Limits{450, 75, 9}
+    case "advanced_quarterly":
+        return Limits{720, 105, 15}
+    case "premium_quarterly":
+        return Limits{1080, 225, 30}
+    default: // Free or unrecognized
+        return Limits{5, 2, 0}
+    }
+}
+
+func (h *SeekerProfileHandler) newbuildInfo(s models.Seeker, db *mongo.Database) dto.NewInfoBlocks {
+    matchColl := db.Collection("match_scores")
+
+    // Calculate the 2-week cutoff date
+    twoWeeksAgo := time.Now().Add(-14 * 24 * time.Hour)
+
+    // Build the filter for high score matches in the last 2 weeks
+    filter := bson.M{
+        "auth_user_id": s.AuthUserID,
+        "created_at":   bson.M{"$gte": twoWeeksAgo},
+        "match_score":  bson.M{"$gt": 80},
+    }
+
+    // Count matches in that period
+    topJobsCount, _ := matchColl.CountDocuments(context.TODO(), filter)
+
+// Get limits based on subscription
+limits := getLimits(s.SubscriptionTier, s.SubscriptionPeriod)
+// cclear
+
+// Calculate usage
+internalUsage := calculateUsage(s.InternalApplications, limits.Internal)
+externalUsage := calculateUsage(s.ExternalApplications, limits.External)
+testUsage := calculateUsage(s.ProficiencyTest, limits.Tests)
+
+// log.Printf("[DEBUG] Internal used: %d/%d => %d%% left", s.InternalApplications, limits.Internal, internalUsage.Percent)
+// log.Printf("[DEBUG] External used: %d/%d => %d%% left", s.ExternalApplications, limits.External, externalUsage.Percent)
+// log.Printf("[DEBUG] Tests used: %d/%d => %d%% left", s.ProficiencyTest, limits.Tests, testUsage.Percent)
+
+
+    return dto.NewInfoBlocks{
+        AuthUserID:                s.AuthUserID,
+        TotalApplications:         s.TotalApplications,
+        WeeklyAppliedJobs:         s.WeeklyAppliedJobs,
+        TopJobs:                   int(topJobsCount),
+        SubscriptionTier:          s.SubscriptionTier,
+        SubscriptionPeriod:        s.SubscriptionPeriod,
+        SubscriptionIntervalStart: s.SubscriptionIntervalStart,
+        SubscriptionIntervalEnd:   s.SubscriptionIntervalEnd,
+        InternalApplications:      s.InternalApplications,
+        ExternalApplications:      s.ExternalApplications,
+        ProficiencyTest:           s.ProficiencyTest,
+
+        InternalLimit:             limits.Internal,
+        ExternalLimit:             limits.External,
+        TestLimit:                 limits.Tests,
+        InternalRemainingPercent:  internalUsage.Percent,
+        ExternalRemainingPercent:  externalUsage.Percent,
+        TestRemainingPercent:      testUsage.Percent,
+    }
+}
+
 func (h *SeekerProfileHandler) buildFields(s models.Seeker) dto.Profile {
     // Calculate profile completion
     completion, _ := repository.CalculateJobProfileCompletion(s)
@@ -281,6 +388,24 @@ func (h *DashboardV2Handler) GetInfoBlock(c *gin.Context) {
         c.JSON(http.StatusOK, gin.H{"info_block": info})
     })
 }
+
+func (h *DashboardV2Handler) GetNewInfoBlock(c *gin.Context) {
+    h.withTimelineCheck(c, func() {
+        db := c.MustGet("db").(*mongo.Database)
+        userID := c.MustGet("userID").(string)
+        seeker := NewSeekerProfileHandler().fetchSeeker(c, db, userID)
+        if seeker == nil {
+            c.JSON(http.StatusNotFound, gin.H{"error": "seeker_not_found"})
+            return
+        }
+        info := NewSeekerProfileHandler().newbuildInfo(*seeker, db)
+        c.JSON(http.StatusOK, gin.H{"info_block": info})
+    })
+}
+
+
+
+
 
 func (h *DashboardV2Handler) GetProfile(c *gin.Context) {
     h.withTimelineCheck(c, func() {

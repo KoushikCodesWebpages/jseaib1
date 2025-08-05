@@ -37,7 +37,9 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
     newDashboardRoutes := r.Group("/b1/new-dashboard",auth)
     {
         newDashboardRoutes.GET("/mini-status", newDashboardHandler.GetStatus)
+
         newDashboardRoutes.GET("/mini-info", newDashboardHandler.GetInfoBlock)
+        newDashboardRoutes.GET("/new-mini-info",newDashboardHandler.GetNewInfoBlock)
         newDashboardRoutes.GET("/mini-profile", newDashboardHandler.GetProfile)
         newDashboardRoutes.GET("/mini-checklist", newDashboardHandler.GetChecklist)
         newDashboardRoutes.GET("/mini-jobs", newDashboardHandler.GetMiniNewJobs)

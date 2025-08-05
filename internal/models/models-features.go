@@ -305,3 +305,12 @@ func CreateResultsIndexes(collection *mongo.Collection) error {
 	_, err := collection.Indexes().CreateMany(context.Background(), []mongo.IndexModel{indexModel1, indexModel2, indexModel3,indexModel4})
 	return err
 }
+
+type Announcement struct {
+	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Title     string             `bson:"title" json:"title"`
+	Message   string             `bson:"message" json:"message"`
+	IsActive  bool               `bson:"is_active" json:"is_active"`
+	CreatedAt time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt time.Time          `bson:"updated_at" json:"updated_at"`
+}
