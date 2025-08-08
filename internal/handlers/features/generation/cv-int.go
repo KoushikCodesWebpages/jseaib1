@@ -79,12 +79,12 @@ func (h *InternalCVHandler) PostCV(c *gin.Context) {
     var authUser models.AuthUser
     authUserColl.FindOne(c, bson.M{"auth_user_id": userID}).Decode(&authUser)
 
-        pInfo, _ := repository.GetPersonalInfo(&seeker)
-        experienceSummaryObjs, _ := repository.GetWorkExperience(&seeker)
-        certificateObjs, _ := repository.GetCertificates(&seeker)
-        languageObjs, _ := repository.GetLanguages(&seeker)
-        pastProjects, _ := repository.GetPastProjects(&seeker)
-        educationObjs, _ := repository.GetAcademics(&seeker)
+    pInfo, _ := repository.GetPersonalInfo(&seeker)
+    experienceSummaryObjs, _ := repository.GetWorkExperience(&seeker)
+    certificateObjs, _ := repository.GetCertificates(&seeker)
+    languageObjs, _ := repository.GetLanguages(&seeker)
+    pastProjects, _ := repository.GetPastProjects(&seeker)
+    educationObjs, _ := repository.GetAcademics(&seeker)
 
     // 1️⃣ Build education strings
 	// education := []string{}

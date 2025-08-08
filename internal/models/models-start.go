@@ -25,6 +25,7 @@ const (
 	CollectionCV                   	= "cv"
 	CollectionMatchScores          	= "match_scores"
 	CollectionExtJobs			   	= "external_jobs"
+	CollectionJobResearch			= "job_research"
 	CollectionJobs                 	= "jobs"
 	CollectionCounter			   	= "counters"
 	CollectionProfilePic		   	= "profile_pic"
@@ -68,6 +69,7 @@ func InitDB(cfg *config.Config) (*mongo.Client, *mongo.Database) {
 	// 	CollectionMatchScores,
 	// // 	CollectionProfilePic,
 	// 	CollectionJobs,
+	CollectionJobResearch,
 	CollectionAnnouncements,
 	// // 	CollectionExtJobs,
 	// // 	CollectionPreferences,
@@ -109,6 +111,7 @@ func resetCollections() {
 		// CollectionMatchScores,
 		// CollectionJobs,
 		// CollectionExtJobs,
+		// CollectionJobResearch
 		// CollectionCounter,
 		// CollectionProfilePic,
 		// CollectionNotifications,
@@ -159,6 +162,7 @@ func CreateAllIndexes() {
 		// {CollectionCV, CreateCVIndexes},
 		{CollectionMatchScores, CreateMatchScoreIndexes},
 		{CollectionJobs, CreateJobIndexes},
+		{CollectionJobResearch,CreateUserJobResearchIndexes},
 		// {CollectionProfilePic,CreateProfilePicIndexes},
 		// {CollectionNotifications, CreateUserNotificationsIndexes},
 		// {CollectionPreferences, CreateUserPreferencesIndexes},

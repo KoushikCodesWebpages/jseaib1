@@ -155,3 +155,7 @@ func CallCoverLetterAPI(payload map[string]interface{}) (map[string]interface{},
 func CallCVAPI(payload map[string]interface{}) (map[string]interface{}, error) {
     return callAPI(config.Cfg.Cloud.CV_Url, config.Cfg.Cloud.GEN_API_KEY, payload)
 }
+
+func CallJobResearchAPI(payload map[string]interface{}) (map[string]interface{}, error) {
+    return callAPI(config.Cfg.Cloud.JobResearchURL, config.Cfg.Cloud.GEN_API_KEY, payload)
+}

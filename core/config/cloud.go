@@ -32,6 +32,7 @@ type CloudConfig struct {
 
     CL_Url                     string
     CV_Url                     string
+    JobResearchURL              string
 
     DataExtractionAPI          string
 
@@ -85,6 +86,7 @@ func LoadCloudConfig() (*CloudConfig, error) {
 
         CL_Url:                     viper.GetString("COVER_LETTER_API_URL"),
         CV_Url:                     viper.GetString("CV_RESUME_API_URL"),
+        JobResearchURL:              viper.GetString("JOB_RESEARCH_API"),
         GEN_API_KEY:                viper.GetString("COVER_CV_API_KEY"),
 
         DataExtractionAPI:          viper.GetString("DATA_EXTRACTION_API"),    

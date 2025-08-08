@@ -102,6 +102,15 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
     route.PUT("/cv",extGenHandler.PutCV)
     route.PUT("/cl",extGenHandler.PutCoverLetter)
 
+
+    jobReasearchHandler := generation.NewJobResearchHandler()
+    jobResearchGroup := r.Group("/b2/job-research",auth)
+    {
+        jobResearchGroup.POST("",jobReasearchHandler.PostJobResearch)
+    }
+
+
+
     //PAYMENT Routes
     paymentHandler := payment.NewPaymentHandler()
     payRoutes := r.Group("/b1/payment", auth)

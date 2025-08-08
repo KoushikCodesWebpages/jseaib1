@@ -314,3 +314,20 @@ type Announcement struct {
 	CreatedAt time.Time          `bson:"created_at" json:"created_at"`
 	UpdatedAt time.Time          `bson:"updated_at" json:"updated_at"`
 }
+
+// JobResearchResult represents a stored job research output
+type JobResearchResult struct {
+    AuthUserID   string                 `bson:"auth_user_id" json:"auth_user_id"`
+    JobID        string                 `bson:"job_id" json:"job_id"`
+    Response     map[string]interface{} `bson:"response" json:"response"`
+    GeneratedAt  time.Time              `bson:"generated_at" json:"generated_at"`
+}
+
+func CreateUserJobResearchIndexes(collection *mongo.Collection) error {
+	indexModel := mongo.IndexModel{
+		Keys:    bson.D{{Key: "job_id", Value: 1}},
+		Options: options.Index().SetUnique(true).SetName("unique_job_id_notify"),
+	}
+	_, err := collection.Indexes().CreateOne(context.Background(), indexModel)
+	return err
+}
