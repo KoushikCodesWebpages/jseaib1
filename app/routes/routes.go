@@ -57,6 +57,7 @@ func SetupRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config) {
     SetupAuthRoutes(r, cfg)
     SetupDataEntryRoutes(r, client, cfg)
     SetupFeatureRoutes(r, client, cfg)
+    SetupBaseRoutes(r,client,cfg)
 
     // --- Exposed admin routes ---
     r.POST("/b1/api/reset-db", settings.ResetDBHandler)
