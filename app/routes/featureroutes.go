@@ -103,10 +103,11 @@ func SetupFeatureRoutes(r *gin.Engine, client *mongo.Client, cfg *config.Config)
     route.PUT("/cl",extGenHandler.PutCoverLetter)
 
 
-    jobReasearchHandler := generation.NewJobResearchHandler()
+    jobResearchHandler := generation.NewJobResearchHandler()
     jobResearchGroup := r.Group("/b2/job-research",auth)
     {
-        jobResearchGroup.POST("",jobReasearchHandler.PostJobResearch)
+        jobResearchGroup.POST("",jobResearchHandler.PostJobResearch)
+        jobResearchGroup.GET("",jobResearchHandler.GetJobResearch)
     }
 
 
