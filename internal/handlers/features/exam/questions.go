@@ -156,18 +156,7 @@ func (h *QuestionsHandler) GetQuestions(c *gin.Context) {
 
 
 
-func mapOptionDTOs(input []dto.OptionDTO) []models.Option {
-	opts := make([]models.Option, len(input))
-	for i, o := range input {
-		opts[i] = models.Option{
-			ID:        o.OptionID,
-			Text:      o.Text,
-			Media:     o.Media,
-			IsCorrect: o.IsCorrect,
-		}
-	}
-	return opts
-}
+
 
 func (h *QuestionsHandler) UpdateQuestion(c *gin.Context) {
 	db := c.MustGet("db").(*mongo.Database)
@@ -196,7 +185,7 @@ func (h *QuestionsHandler) UpdateQuestion(c *gin.Context) {
 		opts := make([]models.Option, len(*updateDTO.Options))
 		for i, o := range *updateDTO.Options {
 			opts[i] = models.Option{
-				ID:        o.OptionID,
+				OptionID:        o.OptionID,
 				Text:      o.Text,
 				Media:     o.Media,
 				IsCorrect: o.IsCorrect,
@@ -290,7 +279,7 @@ func (h *QuestionsHandler) PatchQuestion(c *gin.Context) {
 		opts := make([]models.Option, len(*patchDTO.Options))
 		for i, o := range *patchDTO.Options {
 			opts[i] = models.Option{
-				ID:        o.OptionID,
+				OptionID:        o.OptionID,
 				Text:      o.Text,
 				Media:     o.Media,
 				IsCorrect: o.IsCorrect,

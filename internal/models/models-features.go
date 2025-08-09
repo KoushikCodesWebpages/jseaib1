@@ -12,7 +12,7 @@ import (
 
 
 type Option struct {
-	ID        			string 		`bson:"id" json:"id"`                         // Unique within question
+	OptionID        	string 		`bson:"option_id" json:"option_id"`                         // Unique within question
 	Text      			string 		`bson:"text" json:"text"`                     // Answer text
 	Media     			string 		`bson:"media,omitempty" json:"media,omitempty"` // Optional image/audio/video URL
 	IsCorrect 			bool   		`bson:"is_correct,omitempty" json:"is_correct,omitempty"` // Only stored in backend

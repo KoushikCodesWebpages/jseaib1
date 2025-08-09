@@ -12,106 +12,95 @@ import (
 	"context"
 )
 
-const resetPasskey = "reset@arshan.de" // You can use os.Getenv("RESET_PASSKEY") in production to make this more secure
+const resetPasskey = "reset@arshan.de" 
+// You can use os.Getenv("RESET_PASSKEY") in production to make this more secure
+var allowedCollections = map[string]struct{}{
+	"auth_users":				{},
+    "seekers":                  {},
+    "preferences":              {},
+	"profile_pic":              {},
+    "notifications":            {},
 
-// ResetRequest defines the structure of the reset request payload
+
+    "cover_letters":            {},
+    "cv":                       {},
+    "selected_job_applications": {},
+    "external_jobs":            {},
+    "match_scores":             {},
+
+	"saved_jobs":               {},
+	"exam_results":             {},
+    "job_research_results":     {},
+    // add more if needed
+}
+
 type ResetRequest struct {
-	Passkey string `json:"passkey"`
-	Email   string `json:"email"`
+    Passkey     string   `json:"passkey"`
+    Email       string   `json:"email"`
+    Collections []string `json:"collections,omitempty"`
 }
 
 // ResetDBHandler handles the logic for resetting the DB (deleting a user and associated data)
 func ResetDBHandler(c *gin.Context) {
-	var req ResetRequest
+    var req ResetRequest
+    if err := c.ShouldBindJSON(&req); err != nil || req.Passkey != resetPasskey {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid passkey or bad request"})
+        return
+    }
 
-	// Validate request
-	if err := c.ShouldBindJSON(&req); err != nil || req.Passkey != resetPasskey {
-		log.Println("❌ Invalid passkey or bad request")
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid passkey or bad request"})
-		return
-	}
+    db := c.MustGet("db").(*mongo.Database)
+    var authUser models.AuthUser
+    if err := db.Collection("auth_users").FindOne(c, bson.M{"email": req.Email}).Decode(&authUser); err != nil {
+        if err == mongo.ErrNoDocuments {
+            c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+        } else {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve user"})
+        }
+        return
+    }
+    userID := authUser.AuthUserID
 
-	// Fetch user by email from MongoDB using the database object
-	db := c.MustGet("db").(*mongo.Database) // Changed to *mongo.Database
-	var authUser models.AuthUser
-	log.Printf("🔄 Fetching user by email: %s", req.Email)
-	err := db.Collection("auth_users").FindOne(c, bson.M{"email": req.Email}).Decode(&authUser)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			log.Printf("❌ User not found: %s", req.Email)
-			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
-		} else {
-			log.Printf("❌ DB error retrieving user: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve user"})
-		}
-		return
-	}
+    if _, err := db.Collection("auth_users").DeleteOne(c, bson.M{"_id": authUser.AuthUserID}); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
+        return
+    }
 
-	// Ensure UUID is converted to string
-	userID := authUser.AuthUserID // Convert UUID to string
-	log.Printf("🔄 Reset triggered for user: %s (ID: %s)", req.Email, userID)
+    collectionsToDelete := req.Collections
+    if len(collectionsToDelete) == 0 {
+        for col := range allowedCollections {
+            collectionsToDelete = append(collectionsToDelete, col)
+        }
+    }
 
-	// Attempt to delete user by string ID
-	log.Printf("🔄 Attempting to delete user from auth_users with ID: %s", userID)
-	_, err = db.Collection("auth_users").DeleteOne(c, bson.M{"_id": authUser.AuthUserID})
-	if err != nil {
-		log.Printf("❌ Failed to delete user from auth_users: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
-		return
-	}
+    for _, col := range collectionsToDelete {
+        if _, ok := allowedCollections[col]; !ok {
+            log.Printf("❌ Attempt to delete unauthorized collection: %s", col)
+            continue
+        }
+        deleteUserDataFromCollection(c, db, col, userID)
+    }
 
-	// Log the result
-	log.Printf("✅ Deleted user with ID: %s", userID)
-
-	// Clean each collection where user data might exist
-	collections := []string{
-		"seekers",
-		"auth_users",
-		"profile_pic",
-		"preferences",
-		"notifications",
-
-		"cover_letters", 
-		"cv", 
-		"selected_job_applications",
-		"external_jobs",
-		"profile_pic",
-		"match_scores", 
-		
-		// "jobs",
-	
-		"saved_jobs",
-		"exam_results",
-	}
-
-	// Delete user data from each collection
-	for _, collectionName := range collections {
-		deleteUserDataFromCollection(c, db, collectionName, userID)
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "User and associated data deleted successfully."})
+    c.JSON(http.StatusOK, gin.H{"message": "User and associated data deleted successfully."})
 }
 
-// Helper function for deleting data from each collection
-func deleteUserDataFromCollection(c context.Context, db *mongo.Database, collectionName string, userID string) {
-	count, err := db.Collection(collectionName).CountDocuments(c, bson.M{"auth_user_id": userID})
-	if err != nil {
-		log.Printf("❌ Error checking collection '%s': %v", collectionName, err)
-		return // Skip this collection if there's an error
-	}
 
-	if count > 0 {
-		// Perform deletion
-		_, err := db.Collection(collectionName).DeleteMany(c, bson.M{"auth_user_id": userID})
-		if err != nil {
-			log.Printf("❌ Error deleting from %s: %v", collectionName, err)
-		} else {
-			log.Printf("✅ Deleted data from %s", collectionName)
-		}
-	} else {
-		log.Printf("🔄 No documents found in collection '%s', skipping deletion.", collectionName)
-	}
+func deleteUserDataFromCollection(ctx context.Context, db *mongo.Database, collectionName, userID string) {
+    count, err := db.Collection(collectionName).CountDocuments(ctx, bson.M{"auth_user_id": userID})
+    if err != nil {
+        log.Printf("❌ Error checking '%s': %v", collectionName, err)
+        return
+    }
+    if count == 0 {
+        log.Printf("🔄 No documents found in '%s', skipping.", collectionName)
+        return
+    }
+    if _, err := db.Collection(collectionName).DeleteMany(ctx, bson.M{"auth_user_id": userID}); err != nil {
+        log.Printf("❌ Error deleting from %s: %v", collectionName, err)
+    } else {
+        log.Printf("✅ Deleted data from %s", collectionName)
+    }
 }
+
 
 // PrintAllCollectionsHandler handles the logic for listing all collections in the DB
 func PrintAllCollectionsHandler(c *gin.Context) {

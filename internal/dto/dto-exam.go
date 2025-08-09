@@ -38,7 +38,26 @@ type ExamResponseDTO struct {
 	UpdatedAt        string           `json:"updated_at"`
 }
 
+type ExamOptionDTO struct {
+	OptionID    string `json:"option_id"`
+	Text  string `json:"text"`
+	Media string `json:"media,omitempty"`
+}
 
+type ExamQuestionDTO struct {
+	QuestionID string      `json:"question_id"`
+	Type       string      `json:"type"`
+	Question   string      `json:"question"`
+	Options    []OptionDTO `json:"options,omitempty"`
+	Language   string      `json:"language,omitempty"`
+	Difficulty string      `json:"difficulty,omitempty"`
+	Title      string      `json:"title"`
+	Description string     `json:"description"`
+	Marks      float64     `json:"marks"`
+	Tags       []string    `json:"tags,omitempty"`
+	Category   string      `json:"category,omitempty"`
+	SubCategory string     `json:"sub_category,omitempty"`
+}
 
 
 type QuestionDTO struct {
@@ -107,26 +126,7 @@ type UpdateQuestionDTO struct {
 
 
 
-type ExamOptionDTO struct {
-	OptionID    string `json:"option_id"`
-	Text  string `json:"text"`
-	Media string `json:"media,omitempty"`
-}
 
-type ExamQuestionDTO struct {
-	QuestionID string      `json:"question_id"`
-	Type       string      `json:"type"`
-	Question   string      `json:"question"`
-	Options    []OptionDTO `json:"options,omitempty"`
-	Language   string      `json:"language,omitempty"`
-	Difficulty string      `json:"difficulty,omitempty"`
-	Title      string      `json:"title"`
-	Description string     `json:"description"`
-	Marks      float64     `json:"marks"`
-	Tags       []string    `json:"tags,omitempty"`
-	Category   string      `json:"category,omitempty"`
-	SubCategory string     `json:"sub_category,omitempty"`
-}
 
 
 type AnswerSubmissionDTO struct {
