@@ -3,7 +3,7 @@ package oauth
 import (
 	"context"
 	"net/http"
-
+	"net/url"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -42,11 +42,10 @@ func GoogleLogin(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"auth_url": url})
 }
 
-// STEP 2: /b1/auth/google/callback → Exchange code for token & fetch Gmail profile
+// STEP 2: /b1/auth/google/callback → Exchange code and redirect to frontend
 func GoogleCallback(c *gin.Context) {
 	ctx := context.Background()
 
-	// Validate state
 	if c.Query("state") != "random-state" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid state"})
 		return
@@ -58,51 +57,51 @@ func GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	// Exchange code for token
 	token, err := GetGoogleConfig().Exchange(ctx, code)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "token exchange failed", "details": err.Error()})
 		return
 	}
-	oauthToken = token // ⚠️ store securely in DB/Redis
 
-	// Create Gmail client
+	// Fetch user profile
 	srv, err := gmail.NewService(ctx, option.WithTokenSource(GetGoogleConfig().TokenSource(ctx, token)))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "gmail service init failed", "details": err.Error()})
 		return
 	}
 
-	// Fetch user profile
 	profile, err := srv.Users.GetProfile("me").Do()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "fetch profile failed", "details": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message":     "Google OAuth successful",
-		"user_email":  profile.EmailAddress,
-		"next_route":  "/b1/auth/google/mails",
-		"accessToken": token.AccessToken, // demo only
-	})
+	// Redirect to frontend with token and email as query params
+	frontendURL := "https://preview.arshan.digital/user/mail"
+	params := url.Values{}
+	params.Add("token", token.AccessToken)
+	params.Add("email", profile.EmailAddress)
+	redirectURL := frontendURL + "?" + params.Encode()
+
+	c.Redirect(http.StatusFound, redirectURL)
 }
 
-// STEP 3: /b1/auth/google/mails → Fetch recent mails
+// STEP 3: /b1/auth/google/mails → Fetch mails using token from query param
 func GoogleRecentMails(c *gin.Context) {
-	if oauthToken == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated, please login first"})
+	accessToken := c.Query("token")
+	if accessToken == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing access token"})
 		return
 	}
 
 	ctx := context.Background()
-	srv, err := gmail.NewService(ctx, option.WithTokenSource(GetGoogleConfig().TokenSource(ctx, oauthToken)))
+	token := &oauth2.Token{AccessToken: accessToken}
+	srv, err := gmail.NewService(ctx, option.WithTokenSource(GetGoogleConfig().TokenSource(ctx, token)))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "gmail service init failed", "details": err.Error()})
 		return
 	}
 
-	// Fetch 10 most recent messages
 	msgs, err := srv.Users.Messages.List("me").MaxResults(10).Do()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "fetch messages failed", "details": err.Error()})
