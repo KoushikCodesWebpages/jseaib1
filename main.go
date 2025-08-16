@@ -15,6 +15,7 @@ import (
     "time"
 
     "github.com/gin-gonic/gin"
+    "RAAS/internal/handlers/oauth"
 )
 
 func main() {
@@ -31,7 +32,7 @@ func main() {
     // Setup Gin router
     r := gin.Default()
     routes.SetupRoutes(r, client, config.Cfg)
-
+    oauth.InitGoogleOAuth(config.Cfg)
 
 
 

@@ -1,111 +1,137 @@
 package oauth
 
-// import (
-//     "context"
-//     "crypto/rand"
-//     "encoding/base64"
-//     "encoding/json"
-//     "net/http"
+import (
+	"context"
+	"net/http"
 
-//     "RAAS/core/config"
-//     "RAAS/core/security"
-//     "go.mongodb.org/mongo-driver/mongo"
+	"github.com/gin-gonic/gin"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	"google.golang.org/api/gmail/v1"
+	"google.golang.org/api/option"
 
-//     "github.com/gin-contrib/sessions"
-//     "github.com/gin-gonic/gin"
-//     "golang.org/x/oauth2"
-//     "golang.org/x/oauth2/google"
-// )
+	"RAAS/core/config"
+)
 
-// const stateCookie = "google_oauth_state"
+var googleOAuthConfig *oauth2.Config
+var oauthToken *oauth2.Token // store token in memory (for demo; use DB/Redis in production)
 
-// func newGoogleOAuthConfig() *oauth2.Config {
-//     return &oauth2.Config{
-//         RedirectURL:  config.Cfg.Cloud.GoogleRedirectURL,
-//         ClientID:     config.Cfg.Cloud.GoogleClientId,
-//         ClientSecret: config.Cfg.Cloud.GoogleClientSecret,
-//         Scopes: []string{
-//             "openid", "email", "profile",
-//             "https://www.googleapis.com/auth/user.phonenumbers.read",
-//         },
-//         Endpoint: google.Endpoint,
-//     }
-// }
+// Initialize Google OAuth config
+func InitGoogleOAuth(cfg *config.Config) {
+	googleOAuthConfig = &oauth2.Config{
+		ClientID:     cfg.Cloud.GoogleClientId,
+		ClientSecret: cfg.Cloud.GoogleClientSecret,
+		RedirectURL:  cfg.Cloud.GoogleRedirectURL, // must match GCP console (→ https://yourdomain.com/b1/auth/google/callback)
+		Scopes: []string{
+			gmail.GmailReadonlyScope,
+			"email",
+			"profile",
+		},
+		Endpoint: google.Endpoint,
+	}
+}
 
-// func GoogleLoginHandler(c *gin.Context) {
-//     b := make([]byte, 16)
-//     rand.Read(b)
-//     state := base64.URLEncoding.EncodeToString(b)
-//     sessions.Default(c).Set(stateCookie, state)
-//     sessions.Default(c).Save()
-//     redirectURL := newGoogleOAuthConfig().AuthCodeURL(state, oauth2.AccessTypeOffline)
-//     c.Redirect(http.StatusTemporaryRedirect, redirectURL)
-// }
+func GetGoogleConfig() *oauth2.Config {
+	return googleOAuthConfig
+}
 
-// func GoogleCallbackHandler(c *gin.Context) {
-//     sess := sessions.Default(c)
-//     if sess.Get(stateCookie) != c.Query("state") {
-//         c.String(http.StatusBadRequest, "Invalid OAuth state")
-//         return
-//     }
+// STEP 1: /b1/auth/google/login → Generate auth URL
+func GoogleLogin(c *gin.Context) {
+	state := "random-state" // ⚠️ replace with real per-session state
+	url := GetGoogleConfig().AuthCodeURL(state, oauth2.AccessTypeOffline)
+	c.JSON(http.StatusOK, gin.H{"auth_url": url})
+}
 
-//     conf := newGoogleOAuthConfig()
-//     token, err := conf.Exchange(context.Background(), c.Query("code"))
-//     if err != nil {
-//         c.String(http.StatusInternalServerError, "Token exchange failed: "+err.Error())
-//         return
-//     }
+// STEP 2: /b1/auth/google/callback → Exchange code for token & fetch Gmail profile
+func GoogleCallback(c *gin.Context) {
+	ctx := context.Background()
 
-//     client := conf.Client(context.Background(), token)
-//     // Basic userinfo
-//     userInfoResp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
-//     if err != nil {
-//         c.String(http.StatusInternalServerError, "Userinfo fetch failed")
-//         return
-//     }
-//     defer userInfoResp.Body.Close()
+	// Validate state
+	if c.Query("state") != "random-state" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid state"})
+		return
+	}
 
-//     var gInfo struct {
-//         Email string `json:"email"`
-//         Name  string `json:"name"`
-//         Picture string `json:"picture"`
-//     }
-//     json.NewDecoder(userInfoResp.Body).Decode(&gInfo)
+	code := c.Query("code")
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing code"})
+		return
+	}
 
-//     // Fetch phone via People API
-//     peopleResp, err := client.Get("https://people.googleapis.com/v1/people/me?personFields=phoneNumbers")
-//     if err != nil {
-//         c.String(http.StatusInternalServerError, "People API fetch failed")
-//         return
-//     }
-//     defer peopleResp.Body.Close()
+	// Exchange code for token
+	token, err := GetGoogleConfig().Exchange(ctx, code)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "token exchange failed", "details": err.Error()})
+		return
+	}
+	oauthToken = token // ⚠️ store securely in DB/Redis
 
-//     var peopleData struct {
-//         PhoneNumbers []struct {
-//             Value string `json:"value"`
-//             Type  string `json:"type"`
-//         } `json:"phoneNumbers"`
-//     }
-//     json.NewDecoder(peopleResp.Body).Decode(&peopleData)
+	// Create Gmail client
+	srv, err := gmail.NewService(ctx, option.WithTokenSource(GetGoogleConfig().TokenSource(ctx, token)))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "gmail service init failed", "details": err.Error()})
+		return
+	}
 
-//     phone := ""
-//     if len(peopleData.PhoneNumbers) > 0 {
-//         phone = peopleData.PhoneNumbers[0].Value
-//     }
+	// Fetch user profile
+	profile, err := srv.Users.GetProfile("me").Do()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "fetch profile failed", "details": err.Error()})
+		return
+	}
 
-//     db := c.MustGet("db").(*mongo.Database)
-//     ur := NewGoogleUserRepo(db)
-//     user, err := ur.GetOrCreateFromGoogle(gInfo.Email, gInfo.Name, gInfo.Picture, phone)
-//     if err != nil {
-//         c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-//         return
-//     }
+	c.JSON(http.StatusOK, gin.H{
+		"message":     "Google OAuth successful",
+		"user_email":  profile.EmailAddress,
+		"next_route":  "/b1/auth/google/mails",
+		"accessToken": token.AccessToken, // demo only
+	})
+}
 
-//     jwtToken, err := security.GenerateJWT(user.AuthUserID, user.Email, user.Role)
-//     if err != nil {
-//         c.JSON(http.StatusInternalServerError, gin.H{"error": "token_generation_failed"})
-//         return
-//     }
+// STEP 3: /b1/auth/google/mails → Fetch recent mails
+func GoogleRecentMails(c *gin.Context) {
+	if oauthToken == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated, please login first"})
+		return
+	}
 
-//     c.JSON(http.StatusOK, gin.H{"token": jwtToken})
-// }
+	ctx := context.Background()
+	srv, err := gmail.NewService(ctx, option.WithTokenSource(GetGoogleConfig().TokenSource(ctx, oauthToken)))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "gmail service init failed", "details": err.Error()})
+		return
+	}
+
+	// Fetch 10 most recent messages
+	msgs, err := srv.Users.Messages.List("me").MaxResults(10).Do()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "fetch messages failed", "details": err.Error()})
+		return
+	}
+
+	var emails []gin.H
+	for _, m := range msgs.Messages {
+		msg, err := srv.Users.Messages.Get("me", m.Id).Format("metadata").MetadataHeaders("Subject", "From").Do()
+		if err != nil {
+			continue
+		}
+
+		subject, from := "", ""
+		for _, h := range msg.Payload.Headers {
+			if h.Name == "Subject" {
+				subject = h.Value
+			} else if h.Name == "From" {
+				from = h.Value
+			}
+		}
+
+		emails = append(emails, gin.H{
+			"id":      m.Id,
+			"from":    from,
+			"subject": subject,
+			"snippet": msg.Snippet,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"messages": emails})
+}

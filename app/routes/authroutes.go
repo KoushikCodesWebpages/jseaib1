@@ -5,7 +5,7 @@ import (
 	"RAAS/core/config"
 	"RAAS/core/middlewares"
 	"RAAS/internal/handlers/auth"
-	// "RAAS/internal/handlers/oauth"
+	"RAAS/internal/handlers/oauth"
 
 
 	"time"
@@ -33,6 +33,9 @@ func SetupAuthRoutes(r *gin.Engine, cfg *config.Config) {
         authRoutes.POST("/admin/refresh-token", auth.AdminRefreshToken)
 		authRoutes.POST("/request-password-reset",resetPassLimiter, auth.RequestPasswordResetHandler )
 		authRoutes.POST("/reset-password", resetPassLimiter, auth.ResetPasswordHandler)
+		authRoutes.GET("/google/login", oauth.GoogleLogin)
+		authRoutes.GET("/google/callback", oauth.GoogleCallback)
+		authRoutes.GET("/google/mails", oauth.GoogleRecentMails)
 		
 	}
 }
